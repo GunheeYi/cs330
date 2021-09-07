@@ -27,6 +27,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+static struct list sleep_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -48,6 +49,16 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
+
+static int64_t next_wake_time;
+
+int64_t get_next_wake_time (void) {
+    return next_wake_time;
+}
+
+void set_next_wake_time (int64_t time) {
+    next_wake_time = (time > next_wake_time) ? next_wake_time : time;
+}
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -108,6 +119,7 @@ thread_init (void) {
 	/* Init the globla thread context */
 	lock_init (&tid_lock);
 	list_init (&ready_list);
+    list_init (&sleep_list);
 	list_init (&destruction_req);
 
 	/* Set up a thread structure for the running thread. */
@@ -306,6 +318,42 @@ thread_yield (void) {
 		list_push_back (&ready_list, &curr->elem);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
+}
+
+void thread_sleep (int64_t wake_time) {
+    
+    struct thread *curr = thread_current ();
+	enum intr_level old_level;
+
+    old_level = intr_disable ();
+    
+    if (curr != idle_thread){
+        list_push_back (&sleep_list, &curr->elem);
+        curr->wake_time = wake_time;
+        set_next_wake_time(wake_time);
+        thread_block();
+    }
+     
+    intr_set_level (old_level);
+}
+
+void thread_wake (int64_t current_time) { 
+    next_wake_time = INT64_MAX;
+    struct list_elem *e;
+    e = list_begin (&sleep_list);
+    // while (e != list_end( &sleep_list)){
+    for (e = list_begin (&sleep_list); e != list_end (&sleep_list); ) {
+        struct thread *t = list_entry (e, struct thread, elem);
+        
+        if (t->wake_time <= current_time){
+            e = list_remove(&t->elem);
+            thread_unblock(t);
+        }
+        else{
+            e = list_next (e);
+            set_next_wake_time(t->wake_time);
+        }
+    }
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
