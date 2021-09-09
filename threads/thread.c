@@ -246,6 +246,22 @@ thread_block (void) {
    update other data. */
 void
 thread_unblock (struct thread *t) {
+	// enum intr_level old_level;
+
+	// ASSERT (is_thread (t));
+
+	// old_level = intr_disable ();
+	// ASSERT (t->status == THREAD_BLOCKED);
+
+	// list_push_back (&ready_list, &t->elem);
+	// t->status = THREAD_READY;
+	// struct thread *curr = thread_current ();
+	// if (curr->priority < t->priority) {
+	// 	thread_yield();
+	// }
+	
+	// intr_set_level (old_level);
+
 	enum intr_level old_level;
 
 	ASSERT (is_thread (t));
@@ -456,6 +472,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
+	t->priority_original = priority;
 	t->magic = THREAD_MAGIC;
 }
 
@@ -468,8 +485,20 @@ static struct thread *
 next_thread_to_run (void) {
 	if (list_empty (&ready_list))
 		return idle_thread;
-	else
-		return list_entry (list_pop_front (&ready_list), struct thread, elem);
+	else {
+		struct list_elem *e = list_begin(&ready_list);
+		struct thread *next_thread = list_entry (e, struct thread, elem);
+		// printf("\n\n\nHello\n\n\n");
+		for (e = list_next (e); e != list_end (&ready_list); e = list_next (e))
+		{
+			
+			struct thread *t = list_entry (e, struct thread, elem);
+			if (t->priority > next_thread->priority) next_thread = list_entry (e, struct thread, elem);
+			
+		}
+		list_remove(&next_thread->elem);
+		return next_thread;
+	}
 }
 
 /* Use iretq to launch the thread */
