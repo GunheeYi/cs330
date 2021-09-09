@@ -378,6 +378,7 @@ void thread_wake (int64_t current_time) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	thread_yield();
 }
 
 /* Returns the current thread's priority. */
