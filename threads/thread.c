@@ -15,6 +15,8 @@
 #include "userprog/process.h"
 #endif
 
+int debugCount = 0;
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -246,31 +248,31 @@ thread_block (void) {
    update other data. */
 void
 thread_unblock (struct thread *t) {
-	// enum intr_level old_level;
-
-	// ASSERT (is_thread (t));
-
-	// old_level = intr_disable ();
-	// ASSERT (t->status == THREAD_BLOCKED);
-
-	// list_push_back (&ready_list, &t->elem);
-	// t->status = THREAD_READY;
-	// struct thread *curr = thread_current ();
-	// if (curr->priority < t->priority) {
-	// 	thread_yield();
-	// }
-	
-	// intr_set_level (old_level);
-
 	enum intr_level old_level;
 
 	ASSERT (is_thread (t));
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
+
 	list_push_back (&ready_list, &t->elem);
 	t->status = THREAD_READY;
+	struct thread *curr = running_thread ();
+	if (curr!=idle_thread && curr->priority < t->priority) {
+		thread_yield();
+	}
 	intr_set_level (old_level);
+
+
+	// enum intr_level old_level;
+
+	// ASSERT (is_thread (t));
+
+	// old_level = intr_disable ();
+	// ASSERT (t->status == THREAD_BLOCKED);
+	// list_push_back (&ready_list, &t->elem);
+	// t->status = THREAD_READY;
+	// intr_set_level (old_level);
 }
 
 /* Returns the name of the running thread. */
@@ -360,7 +362,7 @@ void thread_wake (int64_t current_time) {
     // while (e != list_end( &sleep_list)){
     for (e = list_begin (&sleep_list); e != list_end (&sleep_list); ) {
         struct thread *t = list_entry (e, struct thread, elem);
-        
+
         if (t->wake_time <= current_time){
             e = list_remove(&t->elem);
             thread_unblock(t);
@@ -431,7 +433,8 @@ idle (void *idle_started_ UNUSED) {
 		/* Let someone else run. */
 		intr_disable ();
 		thread_block ();
-
+		// debugCount++;
+		// ASSERT(debugCount<1000);
 		/* Re-enable interrupts and wait for the next one.
 
 		   The `sti' instruction disables interrupts until the
@@ -488,10 +491,8 @@ next_thread_to_run (void) {
 	else {
 		struct list_elem *e = list_begin(&ready_list);
 		struct thread *next_thread = list_entry (e, struct thread, elem);
-		// printf("\n\n\nHello\n\n\n");
 		for (e = list_next (e); e != list_end (&ready_list); e = list_next (e))
 		{
-			
 			struct thread *t = list_entry (e, struct thread, elem);
 			if (t->priority > next_thread->priority) next_thread = list_entry (e, struct thread, elem);
 			
