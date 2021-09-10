@@ -1,11 +1,24 @@
 Kernel command line: -q run priority-donate-lower
-Kernel PANIC at ../../lib/kernel/list.c:78 in list_next(): assertion `is_head (elem) || is_interior (elem)' failed.
-Call stack: 0x8004213755 0x80042139d1 0x800420a1d1 0x8004207b1e 0x80042069d6 0x8004206068.
-The `backtrace' program can make call stacks useful.
-Read "Backtraces" in the "Debugging Tools" chapter
-of the Pintos documentation for more information.
-Timer: 0 ticks
-Thread: 0 idle ticks, 0 kernel ticks, 0 user ticks
-Console: 477 characters output
+0 ~ 9fc00 1
+100000 ~ 13e0000 1
+Pintos booting with: 
+	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
+	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
+Calibrating timer...  154,009,600 loops/s.
+Boot complete.
+Executing 'priority-donate-lower':
+(priority-donate-lower) begin
+(priority-donate-lower) Main thread should have priority 41.  Actual priority: 41.
+(priority-donate-lower) Lowering base priority...
+(priority-donate-lower) Main thread should have priority 41.  Actual priority: 21.
+(priority-donate-lower) acquire: got the lock
+(priority-donate-lower) acquire: done
+(priority-donate-lower) acquire must already have finished.
+(priority-donate-lower) Main thread should have priority 21.  Actual priority: 31.
+(priority-donate-lower) end
+Execution of 'priority-donate-lower' complete.
+Timer: 30 ticks
+Thread: 0 idle ticks, 30 kernel ticks, 0 user ticks
+Console: 905 characters output
 Keyboard: 0 keys pressed
 Powering off...

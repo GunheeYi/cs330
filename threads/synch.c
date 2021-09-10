@@ -275,22 +275,22 @@ lock_release (struct lock *lock) {
     struct list_elem *e=list_begin(&curr->donation_list);
 
      
-    // for (; e != list_end(&curr->donation_list); e=list_next(e)){
-    //     // struct thread *t = list_entry(e, struct thread, donation_elem);
-    //     // if (lock == t->waiting_lock){       //donation_list에는 다른 lock을 원하는 thread도 존재 가능
-    //     //     list_remove(e); 
-    //     // }      
-    // }
+    for (; e != list_end(&curr->donation_list); e=list_next(e)){
+        struct thread *t = list_entry(e, struct thread, donation_elem);
+        if (lock == t->waiting_lock){       //donation_list에는 다른 lock을 원하는 thread도 존재 가능
+            list_remove(e); 
+        }      
+    }
     // lock에 대한, 새로운 priority를 donate하고, donation_list에서 삭제, (lock->holder)
 
-    // curr->priority = curr->priority_original;
-    // if (!list_empty(&curr->donation_list)){
-    //     e = list_begin(&curr->donation_list);       //이미 donation_list는 정렬되어있다.
-    //     struct thread *t = list_entry(e, struct thread, donation_elem);
-    //     if (t->priority > curr->priority){
-    //         curr->priority = t->priority;
-    //     }
-    // }
+    curr->priority = curr->priority_original;
+    if (!list_empty(&curr->donation_list)){
+        e = list_begin(&curr->donation_list);       //이미 donation_list는 정렬되어있다.
+        struct thread *t = list_entry(e, struct thread, donation_elem);
+        if (t->priority > curr->priority){
+            curr->priority = t->priority;
+        }
+    }
     
 	sema_up (&lock->semaphore);
 }
