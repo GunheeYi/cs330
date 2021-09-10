@@ -15,12 +15,15 @@ void sema_down (struct semaphore *);
 bool sema_try_down (struct semaphore *);
 void sema_up (struct semaphore *);
 void sema_self_test (void);
+bool sema_order (const struct list_elem *, const struct list_elem *,void *); 
 
 /* Lock. */
 struct lock {
 	struct thread *holder;      /* Thread holding lock (for debugging). */
 	struct semaphore semaphore; /* Binary semaphore controlling access. */
 };
+
+void priority_donate();
 
 void lock_init (struct lock *);
 void lock_acquire (struct lock *);
@@ -37,6 +40,7 @@ void cond_init (struct condition *);
 void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
+bool cond_order (const struct list_elem *, const struct list_elem *, void *);
 
 /* Optimization barrier.
  *

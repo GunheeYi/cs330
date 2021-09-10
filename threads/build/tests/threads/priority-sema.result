@@ -1,55 +1,10 @@
 FAIL
-Test output failed to match any acceptable form.
-
-Acceptable output:
-  (priority-sema) begin
-  (priority-sema) Thread priority 30 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 29 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 28 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 27 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 26 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 25 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 24 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 23 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 22 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 21 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) end
-Differences in `diff -u' format:
-  (priority-sema) begin
-- (priority-sema) Thread priority 30 woke up.
-  (priority-sema) Back in main thread.
-- (priority-sema) Thread priority 29 woke up.
-- (priority-sema) Back in main thread.
-- (priority-sema) Thread priority 28 woke up.
-- (priority-sema) Back in main thread.
-- (priority-sema) Thread priority 27 woke up.
-- (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 26 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 25 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 24 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 23 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 22 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) Thread priority 21 woke up.
-+ (priority-sema) Back in main thread.
-+ (priority-sema) Thread priority 30 woke up.
-+ (priority-sema) Back in main thread.
-+ (priority-sema) Thread priority 29 woke up.
-+ (priority-sema) Back in main thread.
-+ (priority-sema) Thread priority 28 woke up.
-  (priority-sema) Back in main thread.
-  (priority-sema) end
+Kernel panic in run: PANIC at ../../lib/kernel/list.c:78 in list_next(): assertion `is_head (elem) || is_interior (elem)' failed.
+Call stack: 0x8004213755 0x80042139d1 0x800420a1d1 0x8004207b1e 0x80042069d6 0x8004206068
+Translation of call stack:
+0x0000008004213755: debug_panic (lib/kernel/debug.c:32)
+0x00000080042139d1: list_next (lib/kernel/list.c:79)
+0x000000800420a1d1: lock_release (threads/synch.c:278 (discriminator 2))
+0x0000008004207b1e: allocate_tid (threads/thread.c:687)
+0x00000080042069d6: thread_init (threads/thread.c:131)
+0x0000008004206068: main (threads/init.c:83)
