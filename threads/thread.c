@@ -354,6 +354,30 @@ thread_yield (void) {
 	intr_set_level (old_level);
 }
 
+void
+thread_max_yield (void) {
+    struct thread *curr = thread_current();
+    // enum intr_level old_level;
+
+    if (!list_empty(&ready_list)){
+        struct list_elem *e = list_begin(&ready_list);
+        struct thread *max_thread = list_entry (e, struct thread, elem);
+
+        for (; e != list_end (&ready_list); e = list_next (e))
+        {
+            struct thread *t = list_entry (e, struct thread, elem);
+            if (t->priority > max_thread->priority){
+                max_thread = list_entry (e, struct thread, elem);
+            }
+        }
+
+        if (max_thread->priority > curr->priority){
+            thread_yield();
+        }
+    }
+    // intr_set_level(old_level);
+}
+
 void thread_sleep (int64_t wake_time) {
     
     struct thread *curr = thread_current ();
@@ -393,8 +417,17 @@ void thread_wake (int64_t current_time) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
-    thread_yield();
+    int old_priority = thread_current()->priority;
+	thread_current ()->priority_original = new_priority;
+
+    re_set_priority();
+    thread_max_yield();
+    if (new_priority > old_priority){
+        priority_donate();
+    }
+    // else{
+    //     thread_max_yield();
+    // }
 }
 
 /* Returns the current thread's priority. */
