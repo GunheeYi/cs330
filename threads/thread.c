@@ -76,6 +76,8 @@ static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
 
+int load_avg;
+
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
 
@@ -124,6 +126,8 @@ thread_init (void) {
     list_init (&sleep_list);
 	list_init (&destruction_req);
 
+    load_avg = 0;
+
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
 	init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -139,7 +143,6 @@ thread_start (void) {
 	struct semaphore idle_started;
 	sema_init (&idle_started, 0);
 	thread_create ("idle", PRI_MIN, idle, &idle_started);
-
 	/* Start preemptive thread scheduling. */
 	intr_enable ();
 
@@ -248,22 +251,6 @@ thread_block (void) {
    update other data. */
 void
 thread_unblock (struct thread *t) {
-	// enum intr_level old_level;
-
-	// ASSERT (is_thread (t));
-
-	// old_level = intr_disable ();
-	// ASSERT (t->status == THREAD_BLOCKED);
-
-	// list_push_back (&ready_list, &t->elem);
-	// t->status = THREAD_READY;
-	// struct thread *curr = thread_current ();
-	// if (curr->priority < t->priority) {
-	// 	thread_yield();
-	// }
-	
-	// intr_set_level (old_level);
-
 	enum intr_level old_level;
 
 	ASSERT (is_thread (t));
@@ -278,17 +265,6 @@ thread_unblock (struct thread *t) {
 		thread_yield();
 	}
 	intr_set_level (old_level);
-
-
-	// enum intr_level old_level;
-
-	// ASSERT (is_thread (t));
-
-	// old_level = intr_disable ();
-	// ASSERT (t->status == THREAD_BLOCKED);
-	// list_push_back (&ready_list, &t->elem);
-	// t->status = THREAD_READY;
-	// intr_set_level (old_level);
 }
 
 /* Returns the name of the running thread. */
@@ -417,17 +393,16 @@ void thread_wake (int64_t current_time) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-    int old_priority = thread_current()->priority;
-	thread_current ()->priority_original = new_priority;
-
-    re_set_priority();
-    thread_max_yield();
-    if (new_priority > old_priority){
-        priority_donate();
+    if (!thread_mlfqs){
+        int old_priority = thread_current()->priority;
+	    thread_current ()->priority_original = new_priority;
+    
+        re_set_priority();
+        thread_max_yield();
+        if (new_priority > old_priority){
+            priority_donate();
+        }
     }
-    // else{
-    //     thread_max_yield();
-    // }
 }
 
 /* Returns the current thread's priority. */
@@ -438,30 +413,87 @@ thread_get_priority (void) {
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) {
-	/* TODO: Your implementation goes here */
+thread_set_nice (int nice) {
+    thread_current()->nice = nice;
+    //recalculate priority, and if the thread has no more highest priority, thread_yield()
+    cal_priority();
+    thread_max_yield();
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) {
-	/* TODO: Your implementation goes here */
-	return 0;
+    return thread_current() -> nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) {
-	/* TODO: Your implementation goes here */
-	return 0;
+    return fp_to_int_nearest(mul_diff(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) {
-	/* TODO: Your implementation goes here */
-	return 0;
+    return fp_to_int_nearest(mul_diff(thread_current() -> recent_cpu, 100));
 }
+
+void 
+cal_priority(){
+    // priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
+    // enum intr_level old_level;
+    // intr_set_level(old_level);
+    struct thread *curr = thread_current();
+    curr->priority = -fp_to_int_nearest(
+		sub_diff(
+			add_fp(
+				div_diff(curr->recent_cpu, 4),
+				(curr->nice * 2)
+			),
+			PRI_MAX
+		)
+	);
+}
+
+void
+cal_recent_cpu(){
+    // recent_cpu = (2 * load_avg) / (2 * load_avg + 1) * recent_cpu + nice
+    struct thread *curr = thread_current();
+    curr->recent_cpu = add_diff(
+		mul_fp(
+			div_fp(
+				mul_diff(load_avg, 2),
+				add_diff(
+					mul_diff(load_avg, 2),
+					1
+				)
+			),
+			curr->recent_cpu
+		),
+		curr->nice
+	);
+    return;
+}
+
+void
+cal_load_avg(){
+    // load_avg = (59/60) * load_avg + (1/60) * ready_threads
+    printf("Load average %d, ready list %d", load_avg*10000, list_size(&ready_list));
+	load_avg = 
+		add_fp(
+			div_fp(mul_fp(load_avg, int_to_fp(59)), int_to_fp(60)),
+			div_fp(
+				mul_diff(
+					int_to_fp(1),
+					list_size(&ready_list)+(thread_current()==idle_thread ? 0 : 1)
+				),
+				int_to_fp(60)
+			)
+		);
+    return;
+}
+
+
 
 /* Idle thread.  Executes when no other thread is ready to run.
 
@@ -524,8 +556,19 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->status = THREAD_BLOCKED;
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
-	t->priority = priority;
-	t->priority_original = priority;
+
+    t->nice = NICE_DEFAULT;
+    t->recent_cpu = RECENT_CPU_DEFAULT;
+
+	if (thread_mlfqs){
+        // priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
+        t->priority = -fp_to_int_nearest(sub_diff(add_fp(div_diff(t->recent_cpu, 4), (t->nice * 2)), PRI_MAX));
+    }
+    else {
+        t->priority = priority;
+	    t->priority_original = priority;
+    }
+
 	t->magic = THREAD_MAGIC;
 
     list_init(&t->donation_list);
@@ -719,3 +762,46 @@ allocate_tid (void) {
 
 	return tid;
 }
+
+
+#define F (1<<14)
+
+int int_to_fp (int n) {
+    return n*F;
+}
+int fp_to_int_zero (int x) {
+    return x/F;
+}
+int fp_to_int_nearest (int x) {
+    if (x>=0){
+        return (x+F/2)/F;
+    }
+    else{
+        return (x-F/2)/F;
+    }
+}
+int add_fp (int x, int y) {
+    return x+y;
+}
+int add_diff (int x, int n) {
+    return x+n*F;
+}
+int sub_fp (int x, int y) {
+    return x-y;
+}
+int sub_diff (int x, int n) {
+    return x-n*F;
+}
+int mul_fp (int x, int y) {
+    return ((int64_t)x)*y/F;
+}
+int mul_diff (int x, int n) {
+    return x*n;
+}
+int div_fp (int x, int y) {
+    return ((int64_t)x)*F/y;
+}
+int div_diff (int x, int n) {
+    return x/n;
+}
+
