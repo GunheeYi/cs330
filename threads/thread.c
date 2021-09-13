@@ -478,7 +478,7 @@ cal_recent_cpu(){
 void
 cal_load_avg(){
     // load_avg = (59/60) * load_avg + (1/60) * ready_threads
-    printf("Load average %d, ready list %d", load_avg*10000, list_size(&ready_list));
+    // printf("Load average %d", load_avg*100);
 	load_avg = 
 		add_fp(
 			div_fp(mul_fp(load_avg, int_to_fp(59)), int_to_fp(60)),

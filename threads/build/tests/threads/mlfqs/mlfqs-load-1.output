@@ -1,0 +1,22 @@
+Kernel command line: -q -mlfqs run mlfqs-load-1
+0 ~ 9fc00 1
+100000 ~ 13e0000 1
+Pintos booting with: 
+	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
+	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
+Calibrating timer...  52,377,600 loops/s.
+Boot complete.
+Executing 'mlfqs-load-1':
+(mlfqs-load-1) begin
+(mlfqs-load-1) spinning for up to 45 seconds, please wait...
+Load average 0, ready list 0Load average 2730000, ready list 0Load average 5410000, ready list 0Load average 8040000, ready list 0Load average 10630000, ready list 0Load average 13180000, ready list 0Load average 15690000, ready list 0Load average 18150000, ready list 0Load average 20570000, ready list 0Load average 22950000, ready list 0Load average 25290000, ready list 0Load average 27590000, ready list 0Load average 29860000, ready list 0Load average 32090000, ready list 0Load average 34280000, ready list 0Load average 36430000, ready list 0Load average 38550000, ready list 0Load average 40630000, ready list 0Load average 42680000, ready list 0Load average 44690000, ready list 0Load average 46670000, ready list 0Load average 48620000, ready list 0Load average 50530000, ready list 0Load average 52410000, ready list 0Load average 54260000, ready list 0Load average 56080000, ready list 0Load average 57870000, ready list 0Load average 59630000, ready list 0Load average 61360000, ready list 0Load average 63060000, ready list 0Load average 64730000, ready list 0Load average 66380000, ready list 0Load average 68000000, ready list 0Load average 69590000, ready list 0Load average 71160000, ready list 0Load average 72700000, ready list 0Load average 74210000, ready list 0Load average 75700000, ready list 0Load average 77160000, ready list 0Load average 78600000, ready list 0Load average 80020000, ready list 0Load average 81410000, ready list 0(mlfqs-load-1) load average rose to 0.5 after 41 seconds
+(mlfqs-load-1) sleeping for another 10 seconds, please wait...
+Load average 82780000, ready list 0Load average 81400000, ready list 0Load average 80040000, ready list 0Load average 78700000, ready list 0Load average 77380000, ready list 0Load average 76090000, ready list 0Load average 74820000, ready list 0Load average 73570000, ready list 0Load average 72340000, ready list 0Load average 71130000, ready list 1(mlfqs-load-1) load average fell back below 0.5 (to 0.44)
+(mlfqs-load-1) PASS
+(mlfqs-load-1) end
+Execution of 'mlfqs-load-1' complete.
+Timer: 5201 ticks
+Thread: 1000 idle ticks, 4201 kernel ticks, 0 user ticks
+Console: 2499 characters output
+Keyboard: 0 keys pressed
+Powering off...
