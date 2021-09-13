@@ -23,7 +23,8 @@ struct lock {
 	struct semaphore semaphore; /* Binary semaphore controlling access. */
 };
 
-void priority_donate();
+void priority_donate(void);
+void re_set_priority(void);
 
 void lock_init (struct lock *);
 void lock_acquire (struct lock *);

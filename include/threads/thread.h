@@ -28,6 +28,9 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+#define NICE_DEFAULT 0
+#define RECENT_CPU_DEFAULT 0
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -99,6 +102,10 @@ struct thread {
     struct lock *waiting_lock;
     struct list donation_list;
     struct list_elem donation_elem;
+
+    int nice;
+    int recent_cpu;
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -138,6 +145,7 @@ void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 void thread_sleep (int64_t);
 void thread_wake (int64_t);
+void thread_max_yield(void);
 
 void set_next_wake_time (int64_t);
 int64_t get_next_wake_time (void);
@@ -151,5 +159,20 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
+
+void cal_recent_cpu(void);
+void cal_load_avg(void);
+void cal_priority(void);
+int int_to_fp (int n);
+int fp_to_int_zero (int x);
+int fp_to_int_nearest (int x);
+int add_fp (int x, int y);
+int add_diff (int x, int n);
+int sub_fp (int x, int y);
+int sub_diff (int x, int y);
+int mul_fp (int x, int y);
+int mul_diff (int x, int y);
+int div_fp (int x, int y);
+int div_diff (int x, int n);
 
 #endif /* threads/thread.h */
