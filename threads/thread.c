@@ -28,6 +28,7 @@ int debugCount = 0;
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
+static struct list all_list;
 static struct list ready_list;
 static struct list sleep_list;
 
@@ -122,6 +123,7 @@ thread_init (void) {
 
 	/* Init the globla thread context */
 	lock_init (&tid_lock);
+	list_init(&all_list);
 	list_init (&ready_list);
     list_init (&sleep_list);
 	list_init (&destruction_req);
@@ -438,40 +440,51 @@ thread_get_recent_cpu (void) {
     return fp_to_int_nearest(mul_diff(thread_current() -> recent_cpu, 100));
 }
 
+void increment_recent_cpu(void) {
+	if(thread_current() != idle_thread) thread_current()->recent_cpu = thread_current()->recent_cpu + int_to_fp(1);
+}
+
 void 
 cal_priority(){
-    // priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
-    // enum intr_level old_level;
-    // intr_set_level(old_level);
-    struct thread *curr = thread_current();
-    curr->priority = -fp_to_int_nearest(
-		sub_diff(
-			add_fp(
-				div_diff(curr->recent_cpu, 4),
-				(curr->nice * 2)
-			),
-			PRI_MAX
-		)
-	);
+	struct list_elem* e;
+	for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
+		struct thread* t = list_entry(e, struct thread, elem);
+		// priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
+		// enum intr_level old_level;
+		// intr_set_level(old_level);
+		t->priority = -fp_to_int_nearest(
+			sub_diff(
+				add_fp(
+					div_diff(t->recent_cpu, 4),
+					(t->nice * 2)
+				),
+				PRI_MAX
+			)
+		);
+	}
+    return;
 }
 
 void
 cal_recent_cpu(){
-    // recent_cpu = (2 * load_avg) / (2 * load_avg + 1) * recent_cpu + nice
-    struct thread *curr = thread_current();
-    curr->recent_cpu = add_diff(
-		mul_fp(
-			div_fp(
-				mul_diff(load_avg, 2),
-				add_diff(
+	struct list_elem* e;
+	for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
+		struct thread* t = list_entry(e, struct thread, elem);
+		// recent_cpu = (2 * load_avg) / (2 * load_avg + 1) * recent_cpu + nice
+		t->recent_cpu = add_diff(
+			mul_fp(
+				div_fp(
 					mul_diff(load_avg, 2),
-					1
-				)
+					add_diff(
+						mul_diff(load_avg, 2),
+						1
+					)
+				),
+				t->recent_cpu
 			),
-			curr->recent_cpu
-		),
-		curr->nice
-	);
+			t->nice
+		);
+	}
     return;
 }
 
@@ -573,6 +586,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 
     list_init(&t->donation_list);
     t->waiting_lock = NULL;
+
+	list_push_back(&all_list, &t->elem);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

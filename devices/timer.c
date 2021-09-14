@@ -131,20 +131,18 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
-    printf("ddd");
 
     if (get_next_wake_time() <= ticks){
         thread_wake(ticks);
     }
 
-    thread_current()->recent_cpu ++;
+	increment_recent_cpu();
 
     // every timer ticks;
     if (thread_mlfqs){
         if (timer_ticks() % TIMER_FREQ == 0){
             cal_recent_cpu();
             cal_load_avg();
-            printf("Load average %d", load_avg*100);
         }
         if (ticks%4 == 0){
             cal_priority();
