@@ -166,10 +166,6 @@ thread_tick (void) {
 	else
 		kernel_ticks++;
 
-	// int ticks = idle_ticks+kernel_ticks;
-	// if (ticks >= 12000 || ticks % 50 == 0)
-		// printf("Total ticks: %d, idle ticks: %d, kernal ticks: %d\n", ticks, idle_ticks, kernel_ticks);
-
 	/* Enforce preemption. */
 	if (++thread_ticks >= TIME_SLICE)
 		intr_yield_on_return ();
@@ -213,7 +209,6 @@ thread_create (const char *name, int priority,
 	/* Initialize thread. */
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
-	// printf("Created thread of id %d..\n", tid);
 
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
@@ -371,7 +366,6 @@ void thread_sleep (int64_t wake_time) {
 	struct thread *curr = thread_current ();
     
     if (curr != idle_thread){
-		// printf("Putting thread of id %d to sleep..\n", curr->tid);
         list_push_back (&sleep_list, &curr->elem);
         curr->wake_time = wake_time;
         set_next_wake_time(wake_time);
@@ -384,19 +378,13 @@ void thread_sleep (int64_t wake_time) {
 void thread_wake (int64_t current_time) { 
 	enum intr_level old_level = intr_disable();
     next_wake_time = INT64_MAX;
-    struct list_elem *e;
-	// printf("Sleep list size: %d\n", list_size(&sleep_list));
-	// printf("Ready list size: %d\n", list_size(&ready_list));
-    e = list_begin (&sleep_list);
-	// if(!list_empty(&sleep_list)) printf("The first thread in sleep list wakes up at: %d\n", list_entry(e, struct thread, elem)->wake_time);
-    // while (e != list_end( &sleep_list)){
-    for (e = list_begin (&sleep_list); e != list_end (&sleep_list); ) {
+    struct list_elem *e = list_begin (&sleep_list);
+    for (; e != list_end (&sleep_list); ) {
         struct thread *t = list_entry (e, struct thread, elem);
 
         if (t->wake_time <= current_time){
             e = list_remove(&t->elem);
 			tid_t tid = &t->tid;
-			// printf("Waking up thread of id %d..\n", tid);
             thread_unblock(t);
         }
         else{
@@ -434,7 +422,8 @@ thread_set_nice (int nice) {
 	enum intr_level old_level = intr_disable ();
     thread_current()->nice = nice;
     //recalculate priority, and if the thread has no more highest priority, thread_yield()
-    cal_priority();
+    cal_priority(thread_current());
+	thread_max_yield();
 	intr_set_level (old_level);
 }
 
@@ -469,35 +458,23 @@ void increment_recent_cpu(void) {
 	if(thread_current() != idle_thread) thread_current()->recent_cpu = add_fp(thread_current()->recent_cpu, int_to_fp(1));
 }
 
-void 
-cal_priority(){
+void cal_priority(struct thread* t) {
+	if (t == idle_thread) return;
+	// priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
+	t->priority = -fp_to_int_nearest(
+		add_diff(
+			div_diff(t->recent_cpu, 4),
+			(t->nice*2 - PRI_MAX)
+		)
+	);
+}
+
+void cal_every_priority(){
 	struct list_elem* e;
 	for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
 		struct thread* t = list_entry(e, struct thread, allelem);
-		if (t == idle_thread) continue;
-		// priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
-		t->priority = -fp_to_int_nearest(
-			add_diff(
-				div_diff(t->recent_cpu, 4),
-				(t->nice*2 - PRI_MAX)
-			)
-		);
+		cal_priority(t);
 	}
-
-	e = list_begin(&ready_list);
-	int max_priority = list_entry(e, struct thread, elem)->priority;
-	for (; e != list_end (&ready_list); e = list_next (e))
-	{
-		struct thread *t = list_entry (e, struct thread, elem);
-		if (t->priority > max_priority){
-			max_priority = t->priority;
-		}
-	}
-	if (!list_empty(&ready_list) && thread_current()->priority < max_priority) {
-		if(intr_context()) intr_yield_on_return();
-		else thread_yield();
-	}
-    return;
 }
 
 void
@@ -527,7 +504,6 @@ cal_recent_cpu(){
 void
 cal_load_avg(){
     // load_avg = (59/60) * load_avg + (1/60) * ready_threads
-    // printf("Load average %d", load_avg*100);
 	load_avg = 
 		add_fp(
 			div_fp(mul_fp(load_avg, int_to_fp(59)), int_to_fp(60)),
@@ -558,7 +534,6 @@ idle (void *idle_started_ UNUSED) {
 	struct semaphore *idle_started = idle_started_;
 
 	idle_thread = thread_current ();
-	// printf("ID of idle thread is: %d-----------------------------\n", idle_thread->tid);
 	sema_up (idle_started);
 
 	for (;;) {

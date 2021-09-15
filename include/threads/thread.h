@@ -163,7 +163,8 @@ void do_iret (struct intr_frame *tf);
 
 void cal_recent_cpu(void);
 void cal_load_avg(void);
-void cal_priority(void);
+void cal_priority(struct thread *t);
+void cal_every_priority(void);
 int int_to_fp (int n);
 int fp_to_int_zero (int x);
 int fp_to_int_nearest (int x);

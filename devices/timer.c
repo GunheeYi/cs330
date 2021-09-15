@@ -129,24 +129,25 @@ timer_print_stats (void) {
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
+
 	ticks++;
 	thread_tick ();
 
     // every timer ticks;
-    if (thread_mlfqs){
-		increment_recent_cpu();
+	if (thread_mlfqs) {
+		increment_recent_cpu ();
+		if (ticks % 4 == 0) {
+			cal_every_priority();
+			thread_max_yield();
+		}
+		if (ticks % TIMER_FREQ == 0) {
+				cal_recent_cpu();
+				cal_load_avg();
+		}
+	}
 
-        if (ticks % TIMER_FREQ == 0){
-            cal_load_avg();
-			cal_recent_cpu();
-        }
-        if (ticks%4 == 0){
-            cal_priority();
-        }
-    }
-    
 	if (get_next_wake_time() <= ticks){
-        thread_wake(timer_ticks());
+        thread_wake(ticks);
     }
         
 }
