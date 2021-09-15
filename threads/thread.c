@@ -127,7 +127,6 @@ thread_init (void) {
 	list_init (&destruction_req);
 
     load_avg = 0;
-	cal_priority();
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -432,38 +431,37 @@ thread_get_priority (void) {
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice) {
-	// enum intr_level old_level = intr_disable ();
+	enum intr_level old_level = intr_disable ();
     thread_current()->nice = nice;
     //recalculate priority, and if the thread has no more highest priority, thread_yield()
     cal_priority();
-    // thread_max_yield();
-	// intr_set_level (old_level);
+	intr_set_level (old_level);
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) {
-	// enum intr_level old_level = intr_disable ();
+	enum intr_level old_level = intr_disable ();
     int nice = thread_current() -> nice;
-	// intr_set_level (old_level);
+	intr_set_level (old_level);
 	return nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) {
-	// enum intr_level old_level = intr_disable ();
+	enum intr_level old_level = intr_disable ();
 	int load_avg100 = fp_to_int_nearest(mul_diff(load_avg, 100));
-	// intr_set_level (old_level);
+	intr_set_level (old_level);
     return load_avg100;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) {
-	// enum intr_level old_level = intr_disable ();
+	enum intr_level old_level = intr_disable ();
 	int recent_cpu100 = fp_to_int_nearest(mul_diff(thread_current() -> recent_cpu, 100));
-	// intr_set_level (old_level);
+	intr_set_level (old_level);
     return recent_cpu100;
 }
 
@@ -478,15 +476,10 @@ cal_priority(){
 		struct thread* t = list_entry(e, struct thread, allelem);
 		if (t == idle_thread) continue;
 		// priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
-		// enum intr_level old_level;
-		// intr_set_level(old_level);
 		t->priority = -fp_to_int_nearest(
-			sub_diff(
-				add_fp(
-					div_diff(t->recent_cpu, 4),
-					(t->nice * 2)
-				),
-				PRI_MAX
+			add_diff(
+				div_diff(t->recent_cpu, 4),
+				(t->nice*2 - PRI_MAX)
 			)
 		);
 	}
@@ -617,11 +610,16 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	if (thread_mlfqs){
         // priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
-        t->priority = -fp_to_int_nearest(sub_diff(add_fp(div_diff(t->recent_cpu, 4), (t->nice * 2)), PRI_MAX));
+        t->priority = -fp_to_int_nearest(
+			add_diff(
+				div_diff(t->recent_cpu, 4),
+				(t->nice*2 - PRI_MAX)
+			)
+		);
     }
     else {
         t->priority = priority;
-	    t->priority_original = priority;
+		t->priority_original = priority;
     }
 
 	t->magic = THREAD_MAGIC;

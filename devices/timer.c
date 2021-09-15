@@ -145,7 +145,7 @@ timer_interrupt (struct intr_frame *args UNUSED) {
         }
     }
     
-	if (get_next_wake_time() <= timer_ticks()){
+	if (get_next_wake_time() <= ticks){
         thread_wake(timer_ticks());
     }
         
