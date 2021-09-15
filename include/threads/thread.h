@@ -99,6 +99,7 @@ struct thread {
     int64_t wake_time;
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+	struct list_elem allelem;
     struct lock *waiting_lock;
     struct list donation_list;
     struct list_elem donation_elem;

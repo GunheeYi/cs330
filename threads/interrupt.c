@@ -347,6 +347,7 @@ intr_handler (struct intr_frame *frame) {
 	}
 
 	/* Invoke the interrupt's handler. */
+	// printf("Frame vec_no: %d\n", frame->vec_no);
 	handler = intr_handlers[frame->vec_no];
 	if (handler != NULL)
 		handler (frame);

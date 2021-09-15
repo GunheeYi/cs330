@@ -132,23 +132,22 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
 
-    if (get_next_wake_time() <= ticks){
-        thread_wake(ticks);
-    }
-
-	increment_recent_cpu();
-
     // every timer ticks;
     if (thread_mlfqs){
-        if (timer_ticks() % TIMER_FREQ == 0){
-            cal_recent_cpu();
+		increment_recent_cpu();
+
+        if (ticks % TIMER_FREQ == 0){
             cal_load_avg();
+			cal_recent_cpu();
         }
         if (ticks%4 == 0){
             cal_priority();
         }
     }
     
+	if (get_next_wake_time() <= timer_ticks()){
+        thread_wake(timer_ticks());
+    }
         
 }
 
