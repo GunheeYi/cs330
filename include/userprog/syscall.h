@@ -8,7 +8,7 @@ void syscall_init (void);
 void haltt();
 void exitt(int status);
 pid_t forkk(const char *thread_name);
-int execc(onst char *file);
+int execc(const char *file);
 int waitt(pid_t pid);
 bool createe(const char *file, unsigned initial_size);
 bool removee(const char *file);

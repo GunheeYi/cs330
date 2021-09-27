@@ -22,6 +22,8 @@
 #include "vm/vm.h"
 #endif
 
+#define WSIZE 8
+
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
@@ -158,13 +160,73 @@ error:
 	thread_exit ();
 }
 
+void
+put_argu(struct intr_frame *_if, char **argv, int argc){
+
+	// ASSERT(0);
+	void *rsp = (void *)_if->rsp;
+	int len = 0;
+	char *addr[128];
+
+	for (int i=argc-1; i>=0; i--){
+		len = strlen(argv[i])+1;
+		rsp -= len;
+		// memcpy(rsp, argv[i], len);
+		*(char *)rsp = argv[i];
+		addr[i] = rsp;
+	}
+	
+
+	///word align
+	while( (uint64_t)rsp % WSIZE != 0){
+		rsp--;
+		*(uint8_t *)rsp = 0;
+	}
+	ASSERT(0);
+	///final, empty argu space
+	rsp -= WSIZE;
+	*(char *)rsp = 0;
+	
+	///put argu
+	for (int i=1; i<=argc; i++){
+		rsp -= WSIZE;
+		memcpy(rsp, addr[argc-i], 8);
+		// *(char *)rsp = addr[argc-i];
+	}
+	
+
+	///set rdi, rsi
+	_if->R.rdi = (uint64_t)argc;
+	_if->R.rsi = (uint64_t)rsp;
+   	
+	///return address
+	rsp -= WSIZE;
+	*(uint64_t *)rsp = 0;
+	_if->rsp = (uintptr_t)rsp;
+
+	return;
+}
+
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
 int
 process_exec (void *f_name) {
-	char *file_name = f_name;
+	char *file_name;
 	bool success;
 
+	char *token, *save_ptr;
+	int argc = 0;
+	char *argv[128];
+
+	char cmdline[128];
+	strlcpy(cmdline, (char *)f_name, PGSIZE);
+	for (token = strtok_r (cmdline, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
+		argv[argc] = token;
+		argc++;
+	}
+	
+	file_name = argv[0];
+	
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -173,16 +235,18 @@ process_exec (void *f_name) {
 	_if.cs = SEL_UCSEG;
 	_if.eflags = FLAG_IF | FLAG_MBS;
 
+	
 	/* We first kill the current context */
 	process_cleanup ();
-
 	/* And then load the binary */
 	success = load (file_name, &_if);
-
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
+	palloc_free_page (f_name);
 	if (!success)
 		return -1;
+
+	/////////////////////////////////////////////
+	put_argu(&_if, argv, argc);
 
 	/* Start switched process. */
 	do_iret (&_if);
