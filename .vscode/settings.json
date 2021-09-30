@@ -2,6 +2,11 @@
     "files.associations": {
         "vaddr.h": "c",
         "syscall.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "filesys.h": "c",
+        "init.h": "c",
+        "stdio.h": "c",
+        "syscall-nr.h": "c",
+        "thread.h": "c"
     }
 }
