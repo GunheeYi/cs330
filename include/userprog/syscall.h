@@ -1,7 +1,11 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
-#include <stdbool.h>
+// Includes added from here.
+#include "threads/init.h"
+#include "filesys/filesys.h"
+#include "lib/user/syscall.h"
+#include "threads/thread.h"
 
 void syscall_init (void);
 

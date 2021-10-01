@@ -7,9 +7,6 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
-// Includes added from here.
-#include "threads/init.h"
-#include <filesys/filesys.h>
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -87,10 +84,18 @@ syscall_handler (struct intr_frame *f UNUSED) {
 void haltt() {
 	power_off();
 };
-void exitt(int status);
-pid_t forkk(const char *thread_name);
-int execc(const char *file);
-int waitt(pid_t pid);
+void exitt(int status) {
+
+};
+pid_t forkk(const char *thread_name) {
+
+};
+int execc(const char *file) {
+
+};
+int waitt(pid_t pid) {
+
+};
 bool createe(const char *file, unsigned initial_size) {
 	return (filesys_create(file, initial_size));
 };
@@ -99,13 +104,35 @@ bool removee(const char *file) {
 	// "removing an open file does not close it"
 	// 주의해야하나???
 };
-int openn(const char *file);
-int filesizee(int fd);
-int readd(int fd, void *buffer, unsigned size);
-int writee(int fd, const void *buffer, unsigned size);
-void seekk(int fd, unsigned position);
-unsigned telll(int fd);
-void closee(int fd);
+int openn(const char *file) {
+	struct file* fp = filesys_open(file);
+	
+	if (!file) return -1;
+	
+	struct thread* t = thread_current();
+	struct fd new_fd = { t->fd_id_next, fp, NULL };
+	list_push_back(&t->fd_list, &new_fd.elem);
+
+	return t->fd_id_next++;
+};
+int filesizee(int fd) {
+
+};
+int readd(int fd, void *buffer, unsigned size) {
+
+};
+int writee(int fd, const void *buffer, unsigned size) {
+
+};
+void seekk(int fd, unsigned position) {
+
+};
+unsigned telll(int fd) {
+
+};
+void closee(int fd) {
+
+};
 // int dup22();
 // void* mmapp();
 // void munmapp();

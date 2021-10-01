@@ -4,11 +4,10 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/interrupt.h"
+// #include "threads/interrupt.h"  // --> 이거 왜들어가있었지
 #ifdef VM
 #include "vm/vm.h"
 #endif
-
 
 /* States in a thread's life cycle. */
 enum thread_status {
@@ -30,6 +29,15 @@ typedef int tid_t;
 
 #define NICE_DEFAULT 0
 #define RECENT_CPU_DEFAULT 0
+
+
+typedef int fd;
+#define FD_ID_NEXT_DEFAULT 0
+struct fd {
+    int id;
+	struct file* fp;
+    struct list_elem elem;
+};
 
 /* A kernel thread or user process.
  *
@@ -106,6 +114,9 @@ struct thread {
 
     int nice;
     int recent_cpu;
+
+	struct list fd_list;
+	fd fd_id_next;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
