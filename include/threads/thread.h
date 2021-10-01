@@ -4,7 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-// #include "threads/interrupt.h"  // --> 이거 왜들어가있었지
+#include "threads/interrupt.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
