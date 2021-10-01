@@ -25,7 +25,7 @@
 #define WSIZE 8
 
 static void process_cleanup (void);
-static bool load (const char *file_name, struct intr_frame *if_);
+static bool load (const char *file_name, struct intr_frame *if_, char **argv, int argc);
 static void initd (void *f_name);
 static void __do_fork (void *);
 
@@ -160,53 +160,6 @@ error:
 	thread_exit ();
 }
 
-void
-put_argu(struct intr_frame *_if, char **argv, int argc){
-
-	// ASSERT(0);
-	void *rsp = (void *)_if->rsp;
-	int len = 0;
-	char *addr[128];
-
-	for (int i=argc-1; i>=0; i--){
-		len = strlen(argv[i])+1;
-		rsp -= len;
-		// memcpy(rsp, argv[i], len);
-		*(char *)rsp = argv[i];
-		addr[i] = rsp;
-	}
-	
-
-	///word align
-	while( (uint64_t)rsp % WSIZE != 0){
-		rsp--;
-		*(uint8_t *)rsp = 0;
-	}
-	ASSERT(0);
-	///final, empty argu space
-	rsp -= WSIZE;
-	*(char *)rsp = 0;
-	
-	///put argu
-	for (int i=1; i<=argc; i++){
-		rsp -= WSIZE;
-		memcpy(rsp, addr[argc-i], 8);
-		// *(char *)rsp = addr[argc-i];
-	}
-	
-
-	///set rdi, rsi
-	_if->R.rdi = (uint64_t)argc;
-	_if->R.rsi = (uint64_t)rsp;
-   	
-	///return address
-	rsp -= WSIZE;
-	*(uint64_t *)rsp = 0;
-	_if->rsp = (uintptr_t)rsp;
-
-	return;
-}
-
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
 int
@@ -214,18 +167,27 @@ process_exec (void *f_name) {
 	char *file_name;
 	bool success;
 
-	char *token, *save_ptr;
-	int argc = 0;
-	char *argv[128];
+	// char *tmp_file_name[128], *cmd[128];
+	char *cmd[128];
+	// strlcpy(tmp_file_name, f_name, strlen(f_name)+1);
+	strlcpy(cmd, f_name, strlen(f_name)+1);
+	
+	// char *save_ptr;
+	// file_name = strtok_r (tmp_file_name, " ", &save_ptr);
 
-	char cmdline[128];
-	strlcpy(cmdline, (char *)f_name, PGSIZE);
-	for (token = strtok_r (cmdline, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
+	char *argv[128];
+	int argc = 0;
+
+	char *token, *save_ptr;
+	
+   	for (token = strtok_r (cmd, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
 		argv[argc] = token;
 		argc++;
 	}
-	
+
 	file_name = argv[0];
+	printf("%s   %s\n", argv[0], argv[1]);
+	printf("\n%d\n", argc);
 	
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -239,14 +201,12 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 	/* And then load the binary */
-	success = load (file_name, &_if);
+	success = load (file_name, &_if, argv, argc);
 	/* If load failed, quit. */
 	palloc_free_page (f_name);
 	if (!success)
 		return -1;
 
-	/////////////////////////////////////////////
-	put_argu(&_if, argv, argc);
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -268,6 +228,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	while(1);
 	return -1;
 }
 
@@ -380,12 +341,67 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes,
 		bool writable);
 
+void
+put_argu(struct intr_frame *_if, char **argv, int argc){
+
+	// int len = 0;
+	char **addr = malloc(sizeof(char *) * 128);
+
+	for (int i=argc-1; i>=0; i--){
+		int len = strlen(argv[i])+1;
+		
+		_if->rsp = _if->rsp - len;
+
+		memcpy(_if->rsp, argv[i], len);
+		
+		addr[i] = _if->rsp;
+
+	}
+	///////////////////////////////////////////////
+	
+	///word align
+	while( _if->rsp % WSIZE != 0){
+		_if->rsp--;
+		*(uint8_t *)_if->rsp = 0;
+	}
+	// ASSERT(0);
+	///final, empty argu space
+	_if->rsp = _if->rsp - WSIZE;
+	// *(uint64_t *)_if->rsp = 0;
+	memset(_if->rsp, 0, sizeof(char **));
+	// ASSERT(0);
+
+	///put argu addr
+	for (int j=argc-1; j>=0; j--){
+		_if->rsp = _if->rsp - WSIZE;
+		memcpy(_if->rsp, &addr[j], sizeof(char **));
+	}
+	// ASSERT(0);
+	_if->rsp = _if->rsp - WSIZE;
+	memset(_if->rsp, 0, sizeof(void *));
+	///set rdi, rsi
+	_if->R.rdi = argc;
+	_if->R.rsi = _if->rsp+8;
+   	// ASSERT(0);
+	///return address
+	
+	// *(uint8_t *)_if->rsp = 0;
+	
+	// ASSERT(0);
+	// _if->rsp = (uintptr_t *)rsp;
+	// free(addr);
+
+	hex_dump(_if->R.rsi, _if->R.rsi, _if->R.rdx, 1);
+	//  hex_dump(startaddr, startaddr, endaddr, 0)
+	return;
+}
+
 /* Loads an ELF executable from FILE_NAME into the current thread.
  * Stores the executable's entry point into *RIP
  * and its initial stack pointer into *RSP.
  * Returns true if successful, false otherwise. */
 static bool
-load (const char *file_name, struct intr_frame *if_) {
+load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	struct thread *t = thread_current ();
 	struct ELF ehdr;
 	struct file *file = NULL;
@@ -480,7 +496,8 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
-
+	// printf("--------------%d--------------", argc);
+	put_argu(if_, argv, argc);
 	success = true;
 
 done:
