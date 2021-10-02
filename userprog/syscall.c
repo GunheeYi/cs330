@@ -50,20 +50,20 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a6 = f->R.r9;
 
 	switch (f->R.rax) {
-		// case SYS_HALT: haltt(); break;
-		// case SYS_EXIT: exitt(); break;
-		// case SYS_FORK: forkk(); break;
-		// case SYS_EXEC: execc(); break;
-		// case SYS_WAIT: waitt(); break;
-		// case SYS_CREATE: createe(); break;
-		// case SYS_REMOVE: removee(); break;
-		// case SYS_OPEN: openn(); break;
-		// case SYS_FILESIZE: filesizee(); break;
-		// case SYS_READ: readd(); break;
-		case SYS_WRITE: printf("hi------------------\n"); break;
-		// case SYS_SEEK: seekk(); break;
-		// case SYS_TELL: telll(); break;
-		// case SYS_CLOSE: closee(); break;
+		case SYS_HALT:  break;
+		case SYS_EXIT: break;
+		case SYS_FORK: break;
+		case SYS_EXEC: break;
+		case SYS_WAIT:  break;
+		case SYS_CREATE: break;
+		case SYS_REMOVE: break;
+		case SYS_OPEN: break;
+		case SYS_FILESIZE: break;
+		case SYS_READ: break;
+		case SYS_WRITE: break;
+		case SYS_SEEK: break;
+		case SYS_TELL: break;
+		case SYS_CLOSE: break;
 		// case SYS_DUP2: dup22(); break;
 		// case SYS_MMAP: mmapp(); break;
 		// case SYS_MUNMAP: munmapp(); break;
