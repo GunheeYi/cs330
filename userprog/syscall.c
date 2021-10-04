@@ -48,19 +48,22 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a4 = f->R.r10;
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
-
+	// ASSERT(0);
+	printf("------------%d------------\n", f->R.rax);
+	ASSERT(0);
+	// thread_exit ();
 	switch (f->R.rax) {
-		case SYS_HALT:  break;
-		case SYS_EXIT: break;
-		case SYS_FORK: break;
-		case SYS_EXEC: break;
-		case SYS_WAIT:  break;
+		case SYS_HALT: haltt(); break;
+		case SYS_EXIT: exitt(a1); break;
+		case SYS_FORK: forkk(a1); break;
+		case SYS_EXEC: execc(a1); break;
+		case SYS_WAIT:  waitt(a1); break;
 		case SYS_CREATE: break;
 		case SYS_REMOVE: break;
 		case SYS_OPEN: break;
 		case SYS_FILESIZE: break;
 		case SYS_READ: break;
-		case SYS_WRITE: break;
+		case SYS_WRITE: printf("???????/\n"); break;
 		case SYS_SEEK: break;
 		case SYS_TELL: break;
 		case SYS_CLOSE: break;
@@ -78,23 +81,31 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	}
 
 	// printf ("system call!\n");
-	// thread_exit ();
+	// thread_exit ();/
 }
 
 void haltt() {
 	power_off();
 };
 void exitt(int status) {
-
+	// exit(status);
+	struct thread *curr = thread_current();
+	curr->exit_status = status;
+	printf("exitt?\n");
+	thread_exit();
+	
 };
 pid_t forkk(const char *thread_name) {
-
+	struct thread *curr = thread_current();
+	tid_t tid = process_fork(thread_name);
+	return tid;
 };
 int execc(const char *file) {
-
+	return (process_exec(file));
 };
 int waitt(pid_t pid) {
-
+	// ASSERT(0);
+	return process_wait();
 };
 bool createe(const char *file, unsigned initial_size) {
 	return (filesys_create(file, initial_size));
@@ -109,11 +120,11 @@ int openn(const char *file) {
 	
 	if (!file) return -1;
 	
-	struct thread* t = thread_current();
-	struct fd new_fd = { t->fd_id_next, fp, NULL };
-	list_push_back(&t->fd_list, &new_fd.elem);
+	struct thread* curr = thread_current();
+	struct fd new_fd = { curr->fd_id_next, fp, NULL };
+	list_push_back(&curr->fd_list, &new_fd.elem);
 
-	return t->fd_id_next++;
+	return curr->fd_id_next++;
 };
 int filesizee(int fd) {
 
@@ -122,7 +133,10 @@ int readd(int fd, void *buffer, unsigned size) {
 
 };
 int writee(int fd, const void *buffer, unsigned size) {
-
+	// void putbuf (const char *, size_t);
+	printf("hihi\n");
+	putbuf(buffer, size);
+	return size;
 };
 void seekk(int fd, unsigned position) {
 

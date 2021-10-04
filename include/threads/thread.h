@@ -121,6 +121,10 @@ struct thread {
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
+	struct list child_list;
+	struct list_elem child_elem;
+
+	enum thread_status exit_status;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */

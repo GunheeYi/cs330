@@ -204,12 +204,38 @@ process_exec (void *f_name) {
 	if (!success)
 		return -1;
 
-	ASSERT(0);
+	// ASSERT(0);
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
 }
 
+
+struct thread * get_child(tid_t child_tid){
+	
+	struct thread *curr = thread_current();
+	struct thread *child;
+	struct list_elem *e;
+	printf("11111111111111\n");
+	if (list_empty(&curr->child_list)){
+		// printf("22222222222222\n");
+		return NULL;
+	}
+    
+	for (e = list_begin (&curr->child_list); e != list_end (&curr->child_list); e = list_next (e)) {
+		printf("313124343\n");
+ 	  	child = list_entry (e, struct thread, child_elem);
+ 		if (child->tid == child_tid){
+			break;
+		}
+ 	}
+
+	if ( e == list_end(&curr->child_list)){
+		return NULL;
+	}
+
+	return child;
+}
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
@@ -225,8 +251,16 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	while(1);
-	return -1;
+	// 저 child가 terminate될 때 까지   if child exit, next,       
+	// 내 child_list중에 저 tid_t를 가진 child가 누구인지.
+	struct thread *child = get_child(child_tid);
+	
+	if (child == NULL){
+		return -1;
+	}
+	
+	return child->exit_status;
+
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -386,8 +420,6 @@ put_argu(struct intr_frame *_if, char **argv, int argc){
 	// printf("rsi: %p\n\n", _if->rsp);
 	// printf("%p\n", get_user(_if->rsp));
 	// hex_dump(_if->rsp, _if->rsp, 1000, 1);
-	// free(addr);
-	// free(argv);
 	return;
 }
 
