@@ -1,0 +1,8 @@
+FAIL
+Kernel panic in run: PANIC at ../../userprog/process.c:207 in process_exec(): assertion `0' failed.
+Call stack: 0x80042186ca 0x800421c0cd 0x800421bd02 0x8004207c3f
+Translation of call stack:
+0x00000080042186ca: debug_panic (lib/kernel/debug.c:32)
+0x000000800421c0cd: process_exec (userprog/process.c:211)
+0x000000800421bd02: initd (userprog/process.c:71)
+0x0000008004207c3f: kernel_thread (threads/thread.c:566)

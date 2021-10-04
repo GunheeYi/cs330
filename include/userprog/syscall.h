@@ -35,4 +35,6 @@ void closee(int fd);
 // int mountt();
 // int umountt();
 
+struct fd* get_fd(int id);
+
 #endif /* userprog/syscall.h */

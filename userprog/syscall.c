@@ -60,9 +60,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_WAIT:  waitt(a1); break;
 		case SYS_CREATE: break;
 		case SYS_REMOVE: break;
-		case SYS_OPEN: break;
-		case SYS_FILESIZE: break;
-		case SYS_READ: break;
+		case SYS_OPEN: openn(a1); break;
+		case SYS_FILESIZE: filesizee(a1); break;
+		case SYS_READ: readd(a1, a2, a3); break;
 		case SYS_WRITE: printf("???????/\n"); break;
 		case SYS_SEEK: break;
 		case SYS_TELL: break;
@@ -111,7 +111,13 @@ bool createe(const char *file, unsigned initial_size) {
 	return (filesys_create(file, initial_size));
 };
 bool removee(const char *file) {
-	return filesys_remove(file);
+	if (!filesys_remove(file)) return false;
+	
+	// remove file descriptor
+	// add dir to fd?
+
+	return true;
+
 	// "removing an open file does not close it"
 	// 주의해야하나???
 };
@@ -121,16 +127,21 @@ int openn(const char *file) {
 	if (!file) return -1;
 	
 	struct thread* curr = thread_current();
+	// use palloc instead of initializing struct fd directly?
 	struct fd new_fd = { curr->fd_id_next, fp, NULL };
 	list_push_back(&curr->fd_list, &new_fd.elem);
 
 	return curr->fd_id_next++;
 };
 int filesizee(int fd) {
-
+	return 0;
 };
 int readd(int fd, void *buffer, unsigned size) {
+	struct file* fp = get_fd(fd)->fp;
 
+
+	
+	return 0;
 };
 int writee(int fd, const void *buffer, unsigned size) {
 	// void putbuf (const char *, size_t);
@@ -158,3 +169,15 @@ void closee(int fd) {
 // int symlinkk();
 // int mountt();
 // int umountt();
+
+struct fd* get_fd(int id) {
+	struct thread* t = thread_current();
+	for (struct list_elem *e = list_begin(&t->fd_list); e != list_end (&t->fd_list); e = list_next(e))
+	{
+		struct fd* fd = list_entry (e, struct fd, elem);
+		if (fd->id==id){
+			return fd;
+		}
+	}
+	return NULL;
+}
