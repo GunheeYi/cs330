@@ -133,6 +133,9 @@ thread_init (void) {
 	init_thread (initial_thread, "main", PRI_DEFAULT);
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid ();
+// #ifdef USERPROG
+// 	initial_thread->exit = 1;
+// #endif
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -220,6 +223,10 @@ thread_create (const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
+
+#ifdef USERPROG
+	sema_init (&t->exit_sema, 0);
+#endif
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -582,6 +589,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 
     t->nice = NICE_DEFAULT;
     t->recent_cpu = RECENT_CPU_DEFAULT;
+	/////////sys_wait 
+// #ifdef USERPROG
+// 	t->exit = 1;
+// #endif
 
 	if (thread_mlfqs){
         // priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
@@ -841,3 +852,19 @@ int div_diff (int x, int n) {
     return x/n;
 }
 
+struct thread *get_process(tid_t tid) {
+	struct list_elem* e;
+	struct thread* t;
+	for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
+		t = list_entry(e, struct thread, allelem);
+		if (t->tid == tid){
+			break;
+		}
+	}
+
+	if (e == list_end(&all_list)){
+		return NULL;
+	}
+
+	return t;
+}

@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -118,6 +119,8 @@ struct thread {
 	struct list fd_list;
 	fd fd_id_next;
 
+	// struct semaphore exit_sema;
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -125,6 +128,8 @@ struct thread {
 	struct list_elem child_elem;
 
 	enum thread_status exit_status;
+	// struct semaphore completion_wait
+	struct semaphore exit_sema;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
@@ -191,5 +196,8 @@ int mul_fp (int x, int y);
 int mul_diff (int x, int y);
 int div_fp (int x, int y);
 int div_diff (int x, int n);
+
+
+struct thread *get_process(tid_t tid);
 
 #endif /* threads/thread.h */

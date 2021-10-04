@@ -44,7 +44,6 @@ tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
-
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
 	fn_copy = palloc_get_page (0);
@@ -52,8 +51,14 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+	char *task_name, save_ptr;
+	// token = strtok_r (NULL, " ", &save_ptr)
+	task_name = strtok_r(file_name, " ", &save_ptr);
+	
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	// tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	tid = thread_create (task_name, PRI_DEFAULT, initd, fn_copy);
+
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -216,14 +221,14 @@ struct thread * get_child(tid_t child_tid){
 	struct thread *curr = thread_current();
 	struct thread *child;
 	struct list_elem *e;
-	printf("11111111111111\n");
+	// printf("11111111111111\n");
 	if (list_empty(&curr->child_list)){
 		// printf("22222222222222\n");
 		return NULL;
 	}
     
 	for (e = list_begin (&curr->child_list); e != list_end (&curr->child_list); e = list_next (e)) {
-		printf("313124343\n");
+		// printf("33333333333333\n");
  	  	child = list_entry (e, struct thread, child_elem);
  		if (child->tid == child_tid){
 			break;
@@ -253,11 +258,34 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       implementing the process_wait. */
 	// 저 child가 terminate될 때 까지   if child exit, next,       
 	// 내 child_list중에 저 tid_t를 가진 child가 누구인지.
-	struct thread *child = get_child(child_tid);
 	
+	// while(1);
+
+	struct thread *curr = thread_current();
+	
+	if (curr -> tid == 1){
+		// ASSERT(0);
+		// printf("5555555\n");
+		struct thread *t = get_process(child_tid);
+		if (t == NULL){
+			printf("444444444444\n");
+			ASSERT(0);
+		}
+		sema_down(&t->exit_sema);
+		return t->exit_status;
+		// return curr->exit_status;
+	}
+	
+	struct thread *child = get_child(child_tid);
 	if (child == NULL){
+		
+		// ASSERT(0);
 		return -1;
 	}
+
+	
+	// while(child->exit);
+
 	
 	return child->exit_status;
 
@@ -272,6 +300,10 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
+
+	
+	// ASSERT(0);
+	sema_up(&curr->exit_sema);
 	process_cleanup ();
 }
 

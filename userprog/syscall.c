@@ -49,8 +49,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
 	// ASSERT(0);
-	printf("------------%d------------\n", f->R.rax);
-	ASSERT(0);
+	// printf("------------%d------------\n", f->R.rax);
+	// ASSERT(0);
 	// thread_exit ();
 	switch (f->R.rax) {
 		case SYS_HALT: haltt(); break;
@@ -63,7 +63,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_OPEN: openn(a1); break;
 		case SYS_FILESIZE: filesizee(a1); break;
 		case SYS_READ: readd(a1, a2, a3); break;
-		case SYS_WRITE: printf("???????/\n"); break;
+		case SYS_WRITE: writee(a1, a2, a3); break;
 		case SYS_SEEK: break;
 		case SYS_TELL: break;
 		case SYS_CLOSE: break;
@@ -86,30 +86,44 @@ syscall_handler (struct intr_frame *f UNUSED) {
 
 void haltt() {
 	power_off();
-};
+}
 void exitt(int status) {
 	// exit(status);
 	struct thread *curr = thread_current();
 	curr->exit_status = status;
-	printf("exitt?\n");
+	// printf("exitt?\n");
+	printf ("%s: exit(%d)\n", curr->name,status);
 	thread_exit();
-	
-};
+}
+
+
+
 pid_t forkk(const char *thread_name) {
+	// ASSERT(0);
 	struct thread *curr = thread_current();
 	tid_t tid = process_fork(thread_name);
+
+	struct thread *t = get_process(tid);
+	if (t == NULL){
+		printf("err\n");
+		ASSERT(0);
+		return -1;
+	}
+
+	list_push_back (&curr->child_list, &t->child_elem);
 	return tid;
-};
+}
+
 int execc(const char *file) {
 	return (process_exec(file));
-};
+}
 int waitt(pid_t pid) {
 	// ASSERT(0);
 	return process_wait();
-};
+}
 bool createe(const char *file, unsigned initial_size) {
 	return (filesys_create(file, initial_size));
-};
+}
 bool removee(const char *file) {
 	if (!filesys_remove(file)) return false;
 	
@@ -120,7 +134,7 @@ bool removee(const char *file) {
 
 	// "removing an open file does not close it"
 	// 주의해야하나???
-};
+}
 int openn(const char *file) {
 	struct file* fp = filesys_open(file);
 	
@@ -132,32 +146,33 @@ int openn(const char *file) {
 	list_push_back(&curr->fd_list, &new_fd.elem);
 
 	return curr->fd_id_next++;
-};
+}
 int filesizee(int fd) {
 	return 0;
-};
+}
 int readd(int fd, void *buffer, unsigned size) {
 	struct file* fp = get_fd(fd)->fp;
 
 
 	
 	return 0;
-};
+}
 int writee(int fd, const void *buffer, unsigned size) {
 	// void putbuf (const char *, size_t);
-	printf("hihi\n");
+	// printf("hihi\n");
+	// ASSERT(0);
 	putbuf(buffer, size);
 	return size;
-};
+}
 void seekk(int fd, unsigned position) {
 
-};
+}
 unsigned telll(int fd) {
 
-};
+}
 void closee(int fd) {
 
-};
+}
 // int dup22();
 // void* mmapp();
 // void munmapp();
