@@ -219,26 +219,15 @@ struct thread * get_child(tid_t child_tid){
 	
 	struct thread *curr = thread_current();
 	struct thread *child;
-	struct list_elem *e;
-	// printf("11111111111111\n");
-	if (list_empty(&curr->child_list)){
-		// printf("22222222222222\n");
-		return NULL;
-	}
-    
-	for (e = list_begin (&curr->child_list); e != list_end (&curr->child_list); e = list_next (e)) {
-		// printf("33333333333333\n");
+	
+	for (struct list_elem *e = list_begin (&curr->child_list); e != list_end (&curr->child_list); e = list_next (e)) {
  	  	child = list_entry (e, struct thread, child_elem);
  		if (child->tid == child_tid){
-			break;
+			return child;
 		}
  	}
 
-	if ( e == list_end(&curr->child_list)){
-		return NULL;
-	}
-
-	return child;
+	return NULL;
 }
 
 /* Waits for thread TID to die and returns its exit status.  If

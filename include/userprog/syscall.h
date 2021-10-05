@@ -3,6 +3,7 @@
 
 // Includes added from here.
 #include "threads/init.h"
+#include "filesys/directory.h"
 #include "filesys/filesys.h"
 #include "lib/user/syscall.h"
 #include "threads/thread.h"

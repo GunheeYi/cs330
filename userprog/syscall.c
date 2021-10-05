@@ -58,12 +58,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_FORK: f->R.rax = forkk((const char*) a1); break;
 		case SYS_EXEC: f->R.rax = execc((const char*) a1); break;
 		case SYS_WAIT:  f->R.rax = waitt((pid_t) a1); break;
-		case SYS_CREATE: f->R.rax = createe((const char*) a1, (unsigned int) a2); break;
+		case SYS_CREATE: f->R.rax = createe((const char*) a1, (unsigned) a2); break;
 		case SYS_REMOVE: break;
 		case SYS_OPEN: f->R.rax = openn((const char*) a1); break;
 		case SYS_FILESIZE: f->R.rax = filesizee((int) a1); break;
-		case SYS_READ: f->R.rax = readd((int) a1, (void*) a2, (unsigned int) a3); break;
-		case SYS_WRITE: f->R.rax = writee((int) a1, (const void*) a2, (unsigned int) a3); break;
+		case SYS_READ: f->R.rax = readd((int) a1, (void*) a2, (unsigned) a3); break;
+		case SYS_WRITE: f->R.rax = writee((int) a1, (const void*) a2, (unsigned) a3); break;
 		case SYS_SEEK: break;
 		case SYS_TELL: break;
 		case SYS_CLOSE: break;
@@ -94,13 +94,11 @@ void exitt(int status) {
 	struct thread *curr = thread_current();
 	curr->exit_status = status;
 	// printf("exitt?\n");
-	printf ("%s: exit(%d)\n", curr->name,status);
+	printf ("%s: exit(%d)\n", curr->name, curr->exit_status);
 	#endif
 
 	thread_exit();
 }
-
-
 
 pid_t forkk(const char *thread_name) {
 	// ASSERT(0);
@@ -136,8 +134,7 @@ bool createe(const char *file, unsigned initial_size) {
 	if (file == NULL || file[0] == '\0') exitt(-1);
 	
 	// return false if long file name
-	// correct threshold for a "long file name"????
-	if ( strlen(file) > 255 ) return false;
+	if ( strlen(file) > NAME_MAX ) return false;
 
 	return (filesys_create(file, initial_size));
 }
@@ -178,7 +175,9 @@ int readd(int fd, void *buffer, unsigned size) {
 	// fail if trying to read from fd 1 (stdout)
 	if ( fd==1 ) return -1;
 
-	struct file* fp = get_fm(fd)->fp;
+	struct fm* fm = get_fm(fd);
+	// fail if trying to read from invalid fd
+	// if ( fm==NULL ) exitt(-1);
 
 	return 0;
 }
@@ -186,6 +185,10 @@ int writee(int fd, const void *buffer, unsigned size) {
 
 	// fail if trying to write to fd 0 (stdin)
 	if ( fd==0 ) return -1;
+
+	struct fm* fm = get_fm(fd);
+	// fail if trying to write to invalid fd
+	// if ( fm==NULL ) exitt(-1);
 
 	// void putbuf (const char *, size_t);
 	// printf("hihi\n");
