@@ -7,6 +7,7 @@
 #include "filesys/filesys.h"
 #include "lib/user/syscall.h"
 #include "threads/thread.h"
+#include "threads/mmu.h"
 
 void syscall_init (void);
 
@@ -37,5 +38,6 @@ void closee(int fd);
 // int umountt();
 
 struct fm* get_fm(int fd);
+bool is_not_mapped(uint64_t va);
 
 #endif /* userprog/syscall.h */

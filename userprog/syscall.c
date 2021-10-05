@@ -49,7 +49,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
 	// ASSERT(0);
-	// printf("------------%d------------\n", f->R.rax);
+	printf("------------%d------------\n", f->R.rax);
 	// ASSERT(0);
 	// thread_exit ();
 	switch (f->R.rax) {
@@ -129,12 +129,12 @@ int waitt(pid_t pid) {
 	return process_wait();
 }
 bool createe(const char *file, unsigned initial_size) {
-	
-	// exit if null/empty file name
-	if (file == NULL || file[0] == '\0') exitt(-1);
-	
+	// exit if invalid pointer
+	if (file == NULL || is_not_mapped(file) || file[0] == NULL) exitt(-1);
+
 	// return false if long file name
 	if ( strlen(file) > NAME_MAX ) return false;
+	
 
 	return (filesys_create(file, initial_size));
 }
@@ -151,8 +151,8 @@ bool removee(const char *file) {
 }
 int openn(const char *file) {
 	// handle null file name or empty file
-	if ( file == NULL ) exitt(-1);
-	if ( file[0] == '\0' ) return -1;
+	if ( file == NULL || is_not_mapped(file) ) exitt(-1);
+	if ( file[0] == NULL ) return -1;
 	
 	struct file* fp = filesys_open(file);
 	if (fp==NULL) return -1;
@@ -186,9 +186,11 @@ int writee(int fd, const void *buffer, unsigned size) {
 	// fail if trying to write to fd 0 (stdin)
 	if ( fd==0 ) return -1;
 
+	if ( is_not_mapped(buffer) ) exitt(-1);
+
 	struct fm* fm = get_fm(fd);
 	// fail if trying to write to invalid fd
-	// if ( fm==NULL ) exitt(-1);
+	if ( fm==NULL ) exitt(-1);
 
 	// void putbuf (const char *, size_t);
 	// printf("hihi\n");
@@ -220,12 +222,16 @@ void closee(int fd) {
 
 struct fm* get_fm(int fd) {
 	struct thread* t = thread_current();
+	struct fm* fm;
 	for (struct list_elem *e = list_begin(&t->fm_list); e != list_end (&t->fm_list); e = list_next(e))
 	{
-		struct fm* fm = list_entry (e, struct fm, elem);
-		if (fm->fd==fd){
-			return fm;
-		}
+		fm = list_entry (e, struct fm, elem);
+		// printf("Current fd: %d-----------------------------------------\n", fm->fd);
+		if (fm->fd==fd) return fm;
 	}
 	return NULL;
+}
+
+bool is_not_mapped(uint64_t va) {
+	return pml4e_walk(thread_current()->pml4, va, false) == NULL;
 }
