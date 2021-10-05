@@ -49,7 +49,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
 	// ASSERT(0);
-	// printf("------------%d------------\n", f->R.rax);
+	printf("------------%d------------\n", f->R.rax);
 	// ASSERT(0);
 	// thread_exit ();
 	switch (f->R.rax) {
@@ -58,7 +58,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_FORK: forkk(a1); break;
 		case SYS_EXEC: execc(a1); break;
 		case SYS_WAIT:  waitt(a1); break;
-		case SYS_CREATE: break;
+		case SYS_CREATE: createe(a1, a2); break;
 		case SYS_REMOVE: break;
 		case SYS_OPEN: openn(a1); break;
 		case SYS_FILESIZE: filesizee(a1); break;
@@ -115,13 +115,19 @@ pid_t forkk(const char *thread_name) {
 }
 
 int execc(const char *file) {
-	return (process_exec(file));
+	if (process_exec(file) < 0 ){
+		return -1;
+	}
 }
 int waitt(pid_t pid) {
 	// ASSERT(0);
 	return process_wait();
 }
 bool createe(const char *file, unsigned initial_size) {
+
+	if (file == NULL || file[0] == '\0'){
+		exitt(-1);
+	}
 	return (filesys_create(file, initial_size));
 }
 bool removee(const char *file) {
@@ -161,6 +167,7 @@ int writee(int fd, const void *buffer, unsigned size) {
 	// void putbuf (const char *, size_t);
 	// printf("hihi\n");
 	// ASSERT(0);
+	printf("%s\n", buffer);
 	putbuf(buffer, size);
 	return size;
 }

@@ -52,7 +52,6 @@ process_create_initd (const char *file_name) {
 	strlcpy (fn_copy, file_name, PGSIZE);
 
 	char *task_name, save_ptr;
-	// token = strtok_r (NULL, " ", &save_ptr)
 	task_name = strtok_r(file_name, " ", &save_ptr);
 	
 	/* Create a new thread to execute FILE_NAME. */
