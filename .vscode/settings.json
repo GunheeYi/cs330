@@ -12,7 +12,10 @@
         "file.h": "c",
         "list.h": "c",
         "vm.h": "c",
-        "*.inc": "c"
+        "*.inc": "c",
+        "string_view": "c",
+        "lib.h": "c",
+        "stdio.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

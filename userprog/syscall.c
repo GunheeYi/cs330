@@ -88,11 +88,15 @@ void haltt() {
 	power_off();
 }
 void exitt(int status) {
+
+	#ifdef USERPROG
 	// exit(status);
 	struct thread *curr = thread_current();
 	curr->exit_status = status;
 	// printf("exitt?\n");
 	printf ("%s: exit(%d)\n", curr->name,status);
+	#endif
+
 	thread_exit();
 }
 
@@ -110,7 +114,10 @@ pid_t forkk(const char *thread_name) {
 		return -1;
 	}
 
+	#ifdef USERPROG
 	list_push_back (&curr->child_list, &t->child_elem);
+	#endif
+	
 	return tid;
 }
 
@@ -151,7 +158,7 @@ int openn(const char *file) {
 	if ( file[0] == '\0' ) return -1;
 	
 	struct file* fp = filesys_open(file);
-	if (!file) return -1;
+	if (fp==NULL) return -1;
 	
 	struct thread* curr = thread_current();
 	// use palloc instead of initializing struct fd directly?
@@ -164,13 +171,22 @@ int filesizee(int fd) {
 	return 0;
 }
 int readd(int fd, void *buffer, unsigned size) {
+
+	// return 0 immediately if requested to read for size of 0
+	if ( size==0 ) return 0;
+
+	// fail if trying to read from fd 1 (stdout)
+	if ( fd==1 ) return -1;
+
 	struct file* fp = get_fm(fd)->fp;
 
-
-	
 	return 0;
 }
 int writee(int fd, const void *buffer, unsigned size) {
+
+	// fail if trying to write to fd 0 (stdin)
+	if ( fd==0 ) return -1;
+
 	// void putbuf (const char *, size_t);
 	// printf("hihi\n");
 	// ASSERT(0);

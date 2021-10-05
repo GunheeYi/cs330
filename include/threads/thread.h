@@ -31,7 +31,7 @@ typedef int tid_t;
 #define NICE_DEFAULT 0
 #define RECENT_CPU_DEFAULT 0
 
-#define FD_NEXT_DEFAULT 0
+#define FD_NEXT_DEFAULT 2
 struct fm {
     int fd;
 	struct file* fp;
