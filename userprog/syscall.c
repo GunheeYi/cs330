@@ -49,21 +49,21 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
 	// ASSERT(0);
-	printf("------------%d------------\n", f->R.rax);
+	// printf("------------%d------------\n", f->R.rax);
 	// ASSERT(0);
 	// thread_exit ();
 	switch (f->R.rax) {
 		case SYS_HALT: haltt(); break;
-		case SYS_EXIT: exitt(a1); break;
-		case SYS_FORK: forkk(a1); break;
-		case SYS_EXEC: execc(a1); break;
-		case SYS_WAIT:  waitt(a1); break;
-		case SYS_CREATE: createe(a1, a2); break;
+		case SYS_EXIT: exitt((int) a1); break;
+		case SYS_FORK: f->R.rax = forkk((const char*) a1); break;
+		case SYS_EXEC: f->R.rax = execc((const char*) a1); break;
+		case SYS_WAIT:  f->R.rax = waitt((pid_t) a1); break;
+		case SYS_CREATE: f->R.rax = createe((const char*) a1, (unsigned int) a2); break;
 		case SYS_REMOVE: break;
-		case SYS_OPEN: openn(a1); break;
-		case SYS_FILESIZE: filesizee(a1); break;
-		case SYS_READ: readd(a1, a2, a3); break;
-		case SYS_WRITE: writee(a1, a2, a3); break;
+		case SYS_OPEN: f->R.rax = openn((const char*) a1); break;
+		case SYS_FILESIZE: f->R.rax = filesizee((int) a1); break;
+		case SYS_READ: f->R.rax = readd((int) a1, (void*) a2, (unsigned int) a3); break;
+		case SYS_WRITE: f->R.rax = writee((int) a1, (const void*) a2, (unsigned int) a3); break;
 		case SYS_SEEK: break;
 		case SYS_TELL: break;
 		case SYS_CLOSE: break;
@@ -124,10 +124,14 @@ int waitt(pid_t pid) {
 	return process_wait();
 }
 bool createe(const char *file, unsigned initial_size) {
+	
+	// exit if null/empty file name
+	if (file == NULL || file[0] == '\0') exitt(-1);
+	
+	// return false if long file name
+	// correct threshold for a "long file name"????
+	if ( strlen(file) > 255 ) return false;
 
-	if (file == NULL || file[0] == '\0'){
-		exitt(-1);
-	}
 	return (filesys_create(file, initial_size));
 }
 bool removee(const char *file) {
@@ -142,8 +146,11 @@ bool removee(const char *file) {
 	// 주의해야하나???
 }
 int openn(const char *file) {
-	struct file* fp = filesys_open(file);
+	// handle null file name or empty file
+	if ( file == NULL ) exitt(-1);
+	if ( file[0] == '\0' ) return -1;
 	
+	struct file* fp = filesys_open(file);
 	if (!file) return -1;
 	
 	struct thread* curr = thread_current();
@@ -167,7 +174,7 @@ int writee(int fd, const void *buffer, unsigned size) {
 	// void putbuf (const char *, size_t);
 	// printf("hihi\n");
 	// ASSERT(0);
-	printf("%s\n", buffer);
+	// printf("%s\n", buffer);
 	putbuf(buffer, size);
 	return size;
 }
