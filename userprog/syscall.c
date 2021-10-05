@@ -49,7 +49,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
 	// ASSERT(0);
-	printf("------------%d------------\n", f->R.rax);
+	// printf("------------%d------------\n", f->R.rax);
 	// ASSERT(0);
 	// thread_exit ();
 	switch (f->R.rax) {
@@ -175,7 +175,7 @@ int readd(int fd, void *buffer, unsigned size) {
 	// fail if trying to read from fd 1 (stdout)
 	if ( fd==1 ) return -1;
 
-	struct fm* fm = get_fm(fd);
+	// struct fm* fm = get_fm(fd);
 	// fail if trying to read from invalid fd
 	// if ( fm==NULL ) exitt(-1);
 
@@ -186,11 +186,11 @@ int writee(int fd, const void *buffer, unsigned size) {
 	// fail if trying to write to fd 0 (stdin)
 	if ( fd==0 ) return -1;
 
-	if ( is_not_mapped(buffer) ) exitt(-1);
+	if ( is_not_mapped(buffer) ) exitt(-2);
 
-	struct fm* fm = get_fm(fd);
+	// struct fm* fm = get_fm(fd);
 	// fail if trying to write to invalid fd
-	if ( fm==NULL ) exitt(-1);
+	// if ( fm==NULL ) exitt(-1);
 
 	// void putbuf (const char *, size_t);
 	// printf("hihi\n");
