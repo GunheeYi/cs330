@@ -148,16 +148,16 @@ int openn(const char *file) {
 	
 	struct thread* curr = thread_current();
 	// use palloc instead of initializing struct fd directly?
-	struct fd new_fd = { curr->fd_id_next, fp, NULL };
-	list_push_back(&curr->fd_list, &new_fd.elem);
+	struct fm new_file_map = { curr->fd_next, fp, NULL };
+	list_push_back(&curr->fm_list, &new_file_map.elem);
 
-	return curr->fd_id_next++;
+	return curr->fd_next++;
 }
 int filesizee(int fd) {
 	return 0;
 }
 int readd(int fd, void *buffer, unsigned size) {
-	struct file* fp = get_fd(fd)->fp;
+	struct file* fp = get_fm(fd)->fp;
 
 
 	
@@ -192,13 +192,13 @@ void closee(int fd) {
 // int mountt();
 // int umountt();
 
-struct fd* get_fd(int id) {
+struct fm* get_fm(int fd) {
 	struct thread* t = thread_current();
-	for (struct list_elem *e = list_begin(&t->fd_list); e != list_end (&t->fd_list); e = list_next(e))
+	for (struct list_elem *e = list_begin(&t->fm_list); e != list_end (&t->fm_list); e = list_next(e))
 	{
-		struct fd* fd = list_entry (e, struct fd, elem);
-		if (fd->id==id){
-			return fd;
+		struct fm* fm = list_entry (e, struct fm, elem);
+		if (fm->fd==fd){
+			return fm;
 		}
 	}
 	return NULL;

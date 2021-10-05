@@ -613,8 +613,8 @@ init_thread (struct thread *t, const char *name, int priority) {
     list_init(&t->donation_list);
     t->waiting_lock = NULL;
 
-	list_init(&t->fd_list);
-	t->fd_id_next = FD_ID_NEXT_DEFAULT;
+	list_init(&t->fm_list);
+	t->fd_next = FD_NEXT_DEFAULT;
 
 #ifdef USERPROG
 	list_init(&t->child_list);

@@ -31,11 +31,9 @@ typedef int tid_t;
 #define NICE_DEFAULT 0
 #define RECENT_CPU_DEFAULT 0
 
-
-typedef int fd;
-#define FD_ID_NEXT_DEFAULT 0
-struct fd {
-    int id;
+#define FD_NEXT_DEFAULT 0
+struct fm {
+    int fd;
 	struct file* fp;
     struct list_elem elem;
 };
@@ -116,8 +114,8 @@ struct thread {
     int nice;
     int recent_cpu;
 
-	struct list fd_list;
-	fd fd_id_next;
+	struct list fm_list;
+	int fd_next;
 
 	// struct semaphore exit_sema;
 

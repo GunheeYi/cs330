@@ -11,7 +11,8 @@
         "interrupt.h": "c",
         "file.h": "c",
         "list.h": "c",
-        "vm.h": "c"
+        "vm.h": "c",
+        "*.inc": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

@@ -35,6 +35,6 @@ void closee(int fd);
 // int mountt();
 // int umountt();
 
-struct fd* get_fd(int id);
+struct fm* get_fm(int fd);
 
 #endif /* userprog/syscall.h */
