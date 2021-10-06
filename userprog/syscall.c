@@ -59,8 +59,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_REMOVE: break;
 		case SYS_OPEN: f->R.rax = openn((const char*) a1); break;
 		case SYS_FILESIZE: f->R.rax = filesizee((int) a1); break;
-		case SYS_READ: f->R.rax = readd((int) a1, (void*) a2, (unsigned) a3); break;
-		case SYS_WRITE: f->R.rax = writee((int) a1, (const void*) a2, (unsigned) a3); break;
+		case SYS_READ: f->R.rax = (uint32_t) readd((int) a1, (void*) a2, (unsigned) a3); break;
+		case SYS_WRITE: f->R.rax = (uint32_t) writee((int) a1, (const void*) a2, (unsigned) a3); break;
 		case SYS_SEEK: break;
 		case SYS_TELL: break;
 		case SYS_CLOSE: closee((int) a1); break;
@@ -183,16 +183,14 @@ int readd(int fd, void *buffer, unsigned size) {
 	// stdin
 	if ( fd==0 ) {
 		// ??????????????????????
+		return -1;
 	}
 	// file
 	else {
 		struct fm* fm = get_fm(fd);
 		if ( fm==NULL ) exitt(-1); // fd has not been issued (bad)
-		file_read(fm->fp, buffer, size);
+		return file_read(fm->fp, buffer, size);
 	}
-	
-
-	return 0;
 }
 int writee(int fd, const void *buffer, unsigned size) {
 
@@ -204,17 +202,19 @@ int writee(int fd, const void *buffer, unsigned size) {
 
 	// virtual address for buffer is not mapped
 	if ( is_not_mapped(buffer) ) exitt(-1);
-
+	
 	// writing to 
 	// stdout
-	if ( fd==1 ) putbuf(buffer, size);
+	if ( fd==1 ) {
+		putbuf(buffer, size);
+		return size;
+	}
 	// file
 	else {
-		if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
-		file_write(fd, buffer, size);
+		struct fm* fm = get_fm(fd);
+		if ( fm==NULL ) exitt(-1); // fd has not been issued (bad)
+		return file_write(fm->fp, buffer, size);
 	}
-
-	return size;
 }
 void seekk(int fd, unsigned position) {
 
