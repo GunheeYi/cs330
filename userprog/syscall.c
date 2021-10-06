@@ -48,10 +48,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a4 = f->R.r10;
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
-	// ASSERT(0);
-	// printf("------------%d------------\n", f->R.rax);
-	// ASSERT(0);
-	// thread_exit ();
+
 	switch (f->R.rax) {
 		case SYS_HALT: haltt(); break;
 		case SYS_EXIT: exitt((int) a1); break;
@@ -90,10 +87,8 @@ void haltt() {
 void exitt(int status) {
 
 	#ifdef USERPROG
-	// exit(status);
 	struct thread *curr = thread_current();
 	curr->exit_status = status;
-	// printf("exitt?\n");
 	printf ("%s: exit(%d)\n", curr->name, curr->exit_status);
 	#endif
 
@@ -101,7 +96,6 @@ void exitt(int status) {
 }
 
 pid_t forkk(const char *thread_name) {
-	// ASSERT(0);
 	struct thread *curr = thread_current();
 	tid_t tid = process_fork(thread_name);
 
@@ -129,10 +123,10 @@ int waitt(pid_t pid) {
 	return process_wait();
 }
 bool createe(const char *file, unsigned initial_size) {
-	// exit if invalid pointer
+	// if null pointer / virtual address for file is not mapped / file is empty
 	if (file == NULL || is_not_mapped(file) || file[0] == NULL) exitt(-1);
 
-	// return false if long file name
+	// if file name too long
 	if ( strlen(file) > NAME_MAX ) return false;
 	
 
@@ -150,17 +144,23 @@ bool removee(const char *file) {
 	// 주의해야하나???
 }
 int openn(const char *file) {
-	// handle null file name or empty file
+	// null pointer for file name / file name virtual address not mapped
 	if ( file == NULL || is_not_mapped(file) ) exitt(-1);
+	// empty file
 	if ( file[0] == NULL ) return -1;
 	
 	struct file* fp = filesys_open(file);
 	if (fp==NULL) return -1;
 	
 	struct thread* curr = thread_current();
-	// use palloc instead of initializing struct fd directly?
-	struct fm new_file_map = { curr->fd_next, fp, NULL };
-	list_push_back(&curr->fm_list, &new_file_map.elem);
+
+	// use palloc instead of initializing struct fd directly????
+	struct fm* new_file_map = palloc_get_page(0);
+	new_file_map->fd = curr->fd_next;
+	new_file_map->fp = fp;
+	// new_file_map->elem = (struct list_elem) NULL; // unnecessary????
+
+	list_push_back(&curr->fm_list, &new_file_map->elem);
 
 	return curr->fd_next++;
 }
@@ -169,33 +169,35 @@ int filesizee(int fd) {
 }
 int readd(int fd, void *buffer, unsigned size) {
 
-	// return 0 immediately if requested to read for size of 0
+	// requested to read for size of 0
 	if ( size==0 ) return 0;
 
-	// fail if trying to read from fd 1 (stdout)
+	// trying to read from fd 1 (stdout)
 	if ( fd==1 ) return -1;
 
-	// struct fm* fm = get_fm(fd);
-	// fail if trying to read from invalid fd
-	// if ( fm==NULL ) exitt(-1);
+	struct fm* fm = get_fm(fd);
+	// if invalid(bad) fd
+	if ( fm==NULL ) exitt(-1);
 
 	return 0;
 }
 int writee(int fd, const void *buffer, unsigned size) {
 
-	// fail if trying to write to fd 0 (stdin)
+	// requested to write for size of 0
+	if ( size==0 ) return 0;
+
+	// trying to write to fd 0 (stdin)
 	if ( fd==0 ) return -1;
 
-	if ( is_not_mapped(buffer) ) exitt(-2);
+	// virtual address for buffer is not mapped
+	if ( is_not_mapped(buffer) ) exitt(-1);
 
-	// struct fm* fm = get_fm(fd);
-	// fail if trying to write to invalid fd
-	// if ( fm==NULL ) exitt(-1);
+	// fd is not 1 (stdout)
+	if ( fd!=1 ) {
+		// invalid(bad) fd
+		if ( get_fm(fd)==NULL ) exitt(-1);
+	}
 
-	// void putbuf (const char *, size_t);
-	// printf("hihi\n");
-	// ASSERT(0);
-	// printf("%s\n", buffer);
 	putbuf(buffer, size);
 	return size;
 }

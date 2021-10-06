@@ -8,6 +8,7 @@
 #include "lib/user/syscall.h"
 #include "threads/thread.h"
 #include "threads/mmu.h"
+#include "threads/palloc.h"
 
 void syscall_init (void);
 
