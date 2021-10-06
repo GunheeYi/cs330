@@ -63,7 +63,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_WRITE: f->R.rax = writee((int) a1, (const void*) a2, (unsigned) a3); break;
 		case SYS_SEEK: break;
 		case SYS_TELL: break;
-		case SYS_CLOSE: break;
+		case SYS_CLOSE: closee((int) a1); break;
 		// case SYS_DUP2: dup22(); break;
 		// case SYS_MMAP: mmapp(); break;
 		// case SYS_MUNMAP: munmapp(); break;
@@ -145,9 +145,9 @@ bool removee(const char *file) {
 }
 int openn(const char *file) {
 	// null pointer for file name / file name virtual address not mapped
-	if ( file == NULL || is_not_mapped(file) ) exitt(-1);
+	if ( file==NULL || is_not_mapped(file) ) exitt(-1);
 	// empty file
-	if ( file[0] == NULL ) return -1;
+	if ( file[0]==NULL ) return -1;
 	
 	struct file* fp = filesys_open(file);
 	if (fp==NULL) return -1;
@@ -156,6 +156,7 @@ int openn(const char *file) {
 
 	// use palloc instead of initializing struct fd directly????
 	struct fm* new_file_map = palloc_get_page(0);
+	// will palloc_get_page() ever fail? if so, should we immediately free the page back?????????
 	new_file_map->fd = curr->fd_next;
 	new_file_map->fp = fp;
 	// new_file_map->elem = (struct list_elem) NULL; // unnecessary????
@@ -169,15 +170,27 @@ int filesizee(int fd) {
 }
 int readd(int fd, void *buffer, unsigned size) {
 
+	// null pointer for buffer / buffer virtual address not mapped
+	if ( buffer==NULL || is_not_mapped(buffer) ) exitt(-1);
+
 	// requested to read for size of 0
 	if ( size==0 ) return 0;
 
-	// trying to read from fd 1 (stdout)
+	// trying to read from stdout
 	if ( fd==1 ) return -1;
 
-	struct fm* fm = get_fm(fd);
-	// if invalid(bad) fd
-	if ( fm==NULL ) exitt(-1);
+	// reading from
+	// stdin
+	if ( fd==0 ) {
+		// ??????????????????????
+	}
+	// file
+	else {
+		struct fm* fm = get_fm(fd);
+		if ( fm==NULL ) exitt(-1); // fd has not been issued (bad)
+		file_read(fm->fp, buffer, size);
+	}
+	
 
 	return 0;
 }
@@ -186,19 +199,21 @@ int writee(int fd, const void *buffer, unsigned size) {
 	// requested to write for size of 0
 	if ( size==0 ) return 0;
 
-	// trying to write to fd 0 (stdin)
+	// trying to write to stdin
 	if ( fd==0 ) return -1;
 
 	// virtual address for buffer is not mapped
 	if ( is_not_mapped(buffer) ) exitt(-1);
 
-	// fd is not 1 (stdout)
-	if ( fd!=1 ) {
-		// invalid(bad) fd
-		if ( get_fm(fd)==NULL ) exitt(-1);
+	// writing to 
+	// stdout
+	if ( fd==1 ) putbuf(buffer, size);
+	// file
+	else {
+		if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
+		file_write(fd, buffer, size);
 	}
 
-	putbuf(buffer, size);
 	return size;
 }
 void seekk(int fd, unsigned position) {
@@ -208,7 +223,11 @@ unsigned telll(int fd) {
 
 }
 void closee(int fd) {
-
+	struct fm* fm = get_fm(fd);
+	if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
+	file_close(fm->fp);
+	list_remove(&fm->elem);
+	palloc_free_page(fm);
 }
 // int dup22();
 // void* mmapp();
