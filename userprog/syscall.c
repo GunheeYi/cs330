@@ -86,31 +86,25 @@ void haltt() {
 }
 void exitt(int status) {
 
-	#ifdef USERPROG
 	struct thread *curr = thread_current();
 	curr->exit_status = status;
 	printf ("%s: exit(%d)\n", curr->name, curr->exit_status);
-	#endif
 
 	thread_exit();
 }
 
 pid_t forkk(const char *thread_name) {
 	struct thread *curr = thread_current();
-	tid_t tid = process_fork(thread_name);
+	pid_t pid = process_fork(thread_name);
 
-	struct thread *t = get_process(tid);
+	struct thread *t = get_thread((tid_t) pid);
 	if (t == NULL){
-		printf("err\n");
-		ASSERT(0);
 		return -1;
 	}
 
-	#ifdef USERPROG
 	list_push_back (&curr->child_list, &t->child_elem);
-	#endif
 	
-	return tid;
+	return pid;
 }
 
 int execc(const char *file) {

@@ -852,19 +852,13 @@ int div_diff (int x, int n) {
     return x/n;
 }
 
-struct thread *get_process(tid_t tid) {
-	struct list_elem* e;
+struct thread *get_thread(tid_t tid) {
 	struct thread* t;
-	for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
+	for(struct list_elem* e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
 		t = list_entry(e, struct thread, allelem);
 		if (t->tid == tid){
-			break;
+			return t;
 		}
 	}
-
-	if (e == list_end(&all_list)){
-		return NULL;
-	}
-
-	return t;
+	return NULL;
 }

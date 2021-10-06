@@ -17,7 +17,8 @@
         "lib.h": "c",
         "stdio.h": "c",
         "filesys.h": "c",
-        "directory.h": "c"
+        "directory.h": "c",
+        "main.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

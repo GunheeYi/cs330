@@ -128,7 +128,7 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	struct intr_frame *parent_if = &current->tf;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
@@ -254,7 +254,7 @@ process_wait (tid_t child_tid UNUSED) {
 	if (curr -> tid == 1){
 		// ASSERT(0);
 		// printf("5555555\n");
-		struct thread *t = get_process(child_tid);
+		struct thread *t = get_thread(child_tid);
 		if (t == NULL){
 			printf("444444444444\n");
 			ASSERT(0);
@@ -265,15 +265,7 @@ process_wait (tid_t child_tid UNUSED) {
 	}
 	
 	struct thread *child = get_child(child_tid);
-	if (child == NULL){
-		
-		// ASSERT(0);
-		return -1;
-	}
-
-	
-	// while(child->exit);
-
+	if (child == NULL) return 1;
 	
 	return child->exit_status;
 
