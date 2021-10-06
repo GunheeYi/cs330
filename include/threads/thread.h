@@ -196,6 +196,6 @@ int div_fp (int x, int y);
 int div_diff (int x, int n);
 
 
-struct thread *get_process(tid_t tid);
+struct thread *get_thread(tid_t tid);
 
 #endif /* threads/thread.h */
