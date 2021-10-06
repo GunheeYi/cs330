@@ -153,7 +153,6 @@ int openn(const char *file) {
 	if (fp==NULL) return -1;
 	
 	struct thread* curr = thread_current();
-
 	// use palloc instead of initializing struct fd directly????
 	struct fm* new_file_map = palloc_get_page(0);
 	// will palloc_get_page() ever fail? if so, should we immediately free the page back?????????
@@ -166,29 +165,33 @@ int openn(const char *file) {
 	return curr->fd_next++;
 }
 int filesizee(int fd) {
-	return 0;
+	return file_length(get_fm(fd)->fp);
 }
 int readd(int fd, void *buffer, unsigned size) {
-
 	// null pointer for buffer / buffer virtual address not mapped
-	if ( buffer==NULL || is_not_mapped(buffer) ) exitt(-1);
-
+	if ( buffer==NULL || is_not_mapped(buffer) ) {
+		exitt(-1);
+	}
 	// requested to read for size of 0
-	if ( size==0 ) return 0;
-
+	if ( size==0 ) {
+		return 0;
+	}
 	// trying to read from stdout
-	if ( fd==1 ) return -1;
-
+	if ( fd==1 ){
+		return -1;
+	} 
 	// reading from
 	// stdin
 	if ( fd==0 ) {
-		// ??????????????????????
-		return -1;
+		return input_getc();
 	}
 	// file
-	else {
+	else {		
 		struct fm* fm = get_fm(fd);
-		if ( fm==NULL ) exitt(-1); // fd has not been issued (bad)
+		if ( fm==NULL ) {
+			exitt(-1);
+		} // fd has not been issued (bad)
+		
 		return file_read(fm->fp, buffer, size);
 	}
 }
