@@ -252,23 +252,18 @@ process_wait (tid_t child_tid UNUSED) {
 	struct thread *curr = thread_current();
 	
 	if (curr -> tid == 1){
-		// ASSERT(0);
-		// printf("5555555\n");
 		struct thread *t = get_thread(child_tid);
 		if (t == NULL){
-			printf("444444444444\n");
 			ASSERT(0);
 		}
 		sema_down(&t->exit_sema);
 		return t->exit_status;
-		// return curr->exit_status;
 	}
 	
 	struct thread *child = get_child(child_tid);
 	if (child == NULL) return 1;
 	
 	return child->exit_status;
-
 }
 
 /* Exit the process. This function is called by thread_exit (). */
