@@ -613,10 +613,10 @@ init_thread (struct thread *t, const char *name, int priority) {
     list_init(&t->donation_list);
     t->waiting_lock = NULL;
 
+#ifdef USERPROG
 	list_init(&t->fm_list);
 	t->fd_next = FD_NEXT_DEFAULT;
 
-#ifdef USERPROG
 	list_init(&t->child_list);
 #endif
 	if (t!=idle_thread) list_push_back(&all_list, &t->allelem);

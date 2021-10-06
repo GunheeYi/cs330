@@ -114,14 +114,15 @@ struct thread {
     int nice;
     int recent_cpu;
 
-	struct list fm_list;
-	int fd_next;
-
 	// struct semaphore exit_sema;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
+	
+	struct list fm_list;
+	int fd_next;
+	
 	struct list child_list;
 	struct list_elem child_elem;
 
