@@ -127,8 +127,8 @@ struct thread {
 	struct list_elem child_elem;
 
 	enum thread_status exit_status;
-	// struct semaphore completion_wait
-	struct semaphore exit_sema;
+	struct semaphore sema_wait;
+	struct semaphore sema_exit;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */

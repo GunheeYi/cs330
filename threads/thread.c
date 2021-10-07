@@ -225,7 +225,9 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 
 #ifdef USERPROG
-	sema_init (&t->exit_sema, 0);
+	list_push_back(&thread_current()->child_list, &t->child_elem);
+	sema_init(&t->sema_wait, 0);
+	sema_init(&t->sema_exit, 0);
 #endif
 
 	/* Add to run queue. */

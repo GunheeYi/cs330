@@ -41,7 +41,7 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-
+	// ASSERT(0);
 	uint64_t a1 = f->R.rdi;
 	uint64_t a2 = f->R.rsi;
 	uint64_t a3 = f->R.rdx;
@@ -49,12 +49,14 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
 
+	// printf("----------------%d--------------------------------------------\n", f->R.rax);
+
 	switch (f->R.rax) {
 		case SYS_HALT: haltt(); break;
 		case SYS_EXIT: exitt((int) a1); break;
 		case SYS_FORK: f->R.rax = forkk((const char*) a1); break;
 		case SYS_EXEC: f->R.rax = execc((const char*) a1); break;
-		case SYS_WAIT:  f->R.rax = waitt((pid_t) a1); break;
+		case SYS_WAIT: f->R.rax = waitt((pid_t) a1); break;
 		case SYS_CREATE: f->R.rax = createe((const char*) a1, (unsigned) a2); break;
 		case SYS_REMOVE: break;
 		case SYS_OPEN: f->R.rax = openn((const char*) a1); break;
@@ -94,17 +96,7 @@ void exitt(int status) {
 }
 
 pid_t forkk(const char *thread_name) {
-	struct thread *curr = thread_current();
-	pid_t pid = process_fork(thread_name);
-
-	struct thread *t = get_thread((tid_t) pid);
-	if (t == NULL){
-		return -1;
-	}
-
-	list_push_back (&curr->child_list, &t->child_elem);
-	
-	return pid;
+	return process_fork(thread_name);
 }
 
 int execc(const char *file) {
@@ -113,7 +105,6 @@ int execc(const char *file) {
 	}
 }
 int waitt(pid_t pid) {
-	// ASSERT(0);
 	return process_wait();
 }
 bool createe(const char *file, unsigned initial_size) {

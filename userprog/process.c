@@ -134,8 +134,7 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
-	// struct intr_frame *parent_if = &current->tf;
+	struct intr_frame *parent_if = &parent->tf;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
@@ -169,6 +168,10 @@ __do_fork (void *aux) {
 		parent_fm = list_entry (e, struct fm, elem);
 		
 		current_fm = palloc_get_page(0);
+		// if( current_fm==NULL ) {
+		// 	succ = false;
+		// 	break;
+		// }
 		current_fm->fd = current->fd_next++;
 		current_fm->fp = file_duplicate(parent_fm);
 		list_push_back(&current->fm_list, &current_fm->elem);
@@ -268,21 +271,15 @@ process_wait (tid_t child_tid UNUSED) {
 	
 	// while(1);
 
-	struct thread *curr = thread_current();
-	
-	if (curr -> tid == 1){
-		struct thread *t = get_thread(child_tid);
-		if (t == NULL){
-			ASSERT(0);
-		}
-		sema_down(&t->exit_sema);
-		return t->exit_status;
-	}
-	
-	struct thread *child = get_child(child_tid);
-	if (child == NULL) return 1;
-	
-	return child->exit_status;
+	struct thread* child = get_child(child_tid);
+	if ( child==NULL ) return -1;
+
+	sema_down(&child->sema_wait); // wait for child process to end
+	int exit_status = child->exit_status; // get exit status from child process
+	list_remove(&child->child_elem); // next time when parent waits for same child tid, should return immediately
+	sema_up(&child->sema_exit); // allow child process to exit completely
+
+	return exit_status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -294,10 +291,11 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
+	///-----------------------OTHER THINGS?
 
-	
-	// ASSERT(0);
-	sema_up(&curr->exit_sema);
+	sema_up(&curr->sema_wait); // allow parent process do things left (recording exit status & remove me from child list)
+	sema_down(&curr->sema_exit); // proceed exitting completely if allowed by parent process
+
 	process_cleanup ();
 }
 
