@@ -35,6 +35,8 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+
+	lock_init(&lock_file);
 }
 
 /* The main system call interface */
@@ -61,8 +63,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_FILESIZE: f->R.rax = filesizee((int) a1); break;
 		case SYS_READ: f->R.rax = (uint32_t) readd((int) a1, (void*) a2, (unsigned) a3); break;
 		case SYS_WRITE: f->R.rax = (uint32_t) writee((int) a1, (const void*) a2, (unsigned) a3); break;
-		case SYS_SEEK: break;
-		case SYS_TELL: break;
+		case SYS_SEEK: seekk((int) a1, (unsigned) a2); break;
+		case SYS_TELL: f->R.rax = telll((int) a1); break;
 		case SYS_CLOSE: closee((int) a1); break;
 		// case SYS_DUP2: dup22(); break;
 		// case SYS_MMAP: mmapp(); break;
@@ -98,6 +100,8 @@ pid_t forkk(const char *thread_name, struct intr_frame* f) {
 }
 
 int execc(const char *file) {
+	if (is_not_mapped(file)) exitt(-1); // is bad ptr
+
 	if (process_exec(file) < 0 ){
 		return -1;
 	}
@@ -112,16 +116,18 @@ bool createe(const char *file, unsigned initial_size) {
 	// if file name too long
 	if ( strlen(file) > NAME_MAX ) return false;
 	
-
-	return (filesys_create(file, initial_size));
+	lock_acquire(&lock_file);
+	bool succeeded = filesys_create(file, initial_size);
+	lock_release(&lock_file);
+	return succeeded;
 }
 bool removee(const char *file) {
-	if (!filesys_remove(file)) return false;
-	
-	// remove file descriptor
-	// add dir to fd?
 
-	return true;
+	lock_acquire(&lock_file);
+	bool succeeded = filesys_remove(file);
+	lock_release(&lock_file);
+
+	return succeeded;
 
 	// "removing an open file does not close it"
 	// 주의해야하나???
@@ -132,10 +138,13 @@ int openn(const char *file) {
 	// empty file
 	if ( file[0]==NULL ) return -1;
 	
+	lock_acquire(&lock_file);
 	struct file* fp = filesys_open(file);
+	lock_release(&lock_file);
 	if (fp==NULL) return -1;
-	
+
 	struct thread* curr = thread_current();
+
 	// use palloc instead of initializing struct fd directly????
 	struct fm* new_file_map = palloc_get_page(0);
 	// will palloc_get_page() ever fail? if so, should we immediately free the page back?????????
@@ -148,7 +157,10 @@ int openn(const char *file) {
 	return curr->fd_next++;
 }
 int filesizee(int fd) {
-	return file_length(get_fm(fd)->fp);
+	lock_acquire(&lock_file);
+	int length = file_length(get_fm(fd)->fp);
+	lock_release(&lock_file);
+	return length;
 }
 int readd(int fd, void *buffer, unsigned size) {
 	// null pointer for buffer / buffer virtual address not mapped
@@ -175,7 +187,10 @@ int readd(int fd, void *buffer, unsigned size) {
 			exitt(-1);
 		} // fd has not been issued (bad)
 		
-		return file_read(fm->fp, buffer, size);
+		lock_acquire(&lock_file);
+		int size_read = file_read(fm->fp, buffer, size);
+		lock_release(&lock_file);
+		return size_read;
 	}
 }
 int writee(int fd, const void *buffer, unsigned size) {
@@ -199,19 +214,31 @@ int writee(int fd, const void *buffer, unsigned size) {
 	else {
 		struct fm* fm = get_fm(fd);
 		if ( fm==NULL ) exitt(-1); // fd has not been issued (bad)
-		return file_write(fm->fp, buffer, size);
+
+		lock_acquire(&lock_file);
+		int size_wrote = file_write(fm->fp, buffer, size);
+		lock_release(&lock_file);
+		return size_wrote;
 	}
 }
-void seekk(int fd, unsigned position) {
 
+void seekk(int fd, unsigned position) {
+	lock_acquire(&lock_file);
+	file_seek(get_fm(fd)->fp, position);
+	lock_release(&lock_file);
 }
 unsigned telll(int fd) {
-
+	lock_acquire(&lock_file);
+	unsigned position =  file_tell(get_fm(fd)->fp);
+	lock_release(&lock_file);
+	return position;
 }
 void closee(int fd) {
 	struct fm* fm = get_fm(fd);
 	if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
+	lock_acquire(&lock_file);
 	close_fm(fm);
+	lock_release(&lock_file);
 }
 // int dup22();
 // void* mmapp();

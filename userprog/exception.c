@@ -130,6 +130,8 @@ page_fault (struct intr_frame *f) {
 
 	fault_addr = (void *) rcr2();
 
+	if (fault_addr==NULL || is_kernel_vaddr(fault_addr)) exitt(-1);
+
 	/* Turn interrupts back on (they were only off so that we could
 	   be assured of reading CR2 before it changed). */
 	intr_enable ();

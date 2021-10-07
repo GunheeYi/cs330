@@ -132,6 +132,8 @@ struct thread {
 	struct semaphore sema_exit;
 
 	struct intr_frame parent_if;
+
+	struct file* executable;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
