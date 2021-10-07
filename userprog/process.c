@@ -180,7 +180,7 @@ __do_fork (void *aux) {
 		
 		current_fm = palloc_get_page(0);
 		current_fm->fd = current->fd_next++;
-		current_fm->fp = file_duplicate(parent_fm);
+		current_fm->fp = file_duplicate(parent_fm->fp);
 		list_push_back(&current->fm_list, &current_fm->elem);
 	}
 	
@@ -237,9 +237,10 @@ process_exec (void *f_name) {
 	/* And then load the binary */
 	success = load (file_name, &_if, argv, argc);
 	/* If load failed, quit. */
-	palloc_free_page (f_name);
+	// palloc_free_page (f_name);
 	if (!success)
-		return -1;
+		exitt(-1);
+		// return -1;
 
 	// ASSERT(0);
 	/* Start switched process. */
@@ -261,6 +262,12 @@ struct thread * get_child(tid_t child_tid){
  	}
 
 	return NULL;
+}
+
+void close_fm(struct fm* fm) {
+	file_close(fm->fp);
+	list_remove(&fm->elem);
+	palloc_free_page(fm);
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -304,13 +311,18 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
-	
+	// struct fm* fm;
+	// for (struct list_elem *e = list_begin(&curr->fm_list); e != list_end (&curr->fm_list); e = list_next(e))
+	// {
+	// 	fm = list_entry (e, struct fm, elem);
+	// 	close_fm(fm);
+	// }
+
 	// /-----------------------OTHER THINGS???????
 	sema_up(&curr->sema_wait); // allow parent process do things left (recording exit status & remove me from child list)
 	sema_down(&curr->sema_exit); // proceed exitting completely if allowed by parent process
-	process_cleanup ();
-
 	
+	process_cleanup ();
 }
 
 /* Free the current process's resources. */

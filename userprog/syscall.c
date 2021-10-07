@@ -211,9 +211,7 @@ unsigned telll(int fd) {
 void closee(int fd) {
 	struct fm* fm = get_fm(fd);
 	if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
-	file_close(fm->fp);
-	list_remove(&fm->elem);
-	palloc_free_page(fm);
+	close_fm(fm);
 }
 // int dup22();
 // void* mmapp();
