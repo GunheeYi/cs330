@@ -82,8 +82,18 @@ initd (void *f_name) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+	struct thread* curr = thread_current();
+	memcpy(&curr->parent_if, if_, sizeof(struct intr_frame));
+	tid_t child_tid = thread_create (name,
+			PRI_DEFAULT, __do_fork, curr);
+	if (child_tid==TID_ERROR) {
+		return TID_ERROR;
+	}
+	struct thread* child = get_child(child_tid);
+	sema_down(&child->sema_fork);
+	if (child->exit_status==-1) return TID_ERROR; //-------------------necessary?
+	
+	return child_tid;
 }
 
 #ifndef VM
@@ -134,11 +144,12 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if = &parent->tf;
+	struct intr_frame *parent_if = &parent->parent_if;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	if_.R.rax = 0; // return value 0 for child process
 
 	/* 2. Duplicate PT */
 	current->pml4 = pml4_create();
@@ -168,10 +179,6 @@ __do_fork (void *aux) {
 		parent_fm = list_entry (e, struct fm, elem);
 		
 		current_fm = palloc_get_page(0);
-		// if( current_fm==NULL ) {
-		// 	succ = false;
-		// 	break;
-		// }
 		current_fm->fd = current->fd_next++;
 		current_fm->fp = file_duplicate(parent_fm);
 		list_push_back(&current->fm_list, &current_fm->elem);
@@ -180,9 +187,13 @@ __do_fork (void *aux) {
 	process_init ();
 
 	/* Finally, switch to the newly created process. */
-	if (succ)
+	if (succ) {
+		sema_up(&current->sema_fork);
 		do_iret (&if_);
+	}
+		
 error:
+	sema_up(&current->sema_fork);
 	thread_exit ();
 }
 
@@ -238,11 +249,11 @@ process_exec (void *f_name) {
 
 
 struct thread * get_child(tid_t child_tid){
-	
-	struct thread *curr = thread_current();
+
+	struct thread *child_list = &thread_current()->child_list;
 	struct thread *child;
 	
-	for (struct list_elem *e = list_begin (&curr->child_list); e != list_end (&curr->child_list); e = list_next (e)) {
+	for (struct list_elem *e = list_begin (child_list); e != list_end (child_list); e = list_next (e)) {
  	  	child = list_entry (e, struct thread, child_elem);
  		if (child->tid == child_tid){
 			return child;
@@ -272,7 +283,9 @@ process_wait (tid_t child_tid UNUSED) {
 	// while(1);
 
 	struct thread* child = get_child(child_tid);
-	if ( child==NULL ) return -1;
+	if ( child==NULL ) {
+		return -1;
+	}
 
 	sema_down(&child->sema_wait); // wait for child process to end
 	int exit_status = child->exit_status; // get exit status from child process
@@ -291,12 +304,13 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
-	///-----------------------OTHER THINGS?
-
+	
+	// /-----------------------OTHER THINGS???????
 	sema_up(&curr->sema_wait); // allow parent process do things left (recording exit status & remove me from child list)
 	sema_down(&curr->sema_exit); // proceed exitting completely if allowed by parent process
-
 	process_cleanup ();
+
+	
 }
 
 /* Free the current process's resources. */

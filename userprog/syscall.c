@@ -41,7 +41,7 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	// ASSERT(0);
+
 	uint64_t a1 = f->R.rdi;
 	uint64_t a2 = f->R.rsi;
 	uint64_t a3 = f->R.rdx;
@@ -49,12 +49,10 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
 
-	// printf("----------------%d--------------------------------------------\n", f->R.rax);
-
 	switch (f->R.rax) {
 		case SYS_HALT: haltt(); break;
 		case SYS_EXIT: exitt((int) a1); break;
-		case SYS_FORK: f->R.rax = forkk((const char*) a1); break;
+		case SYS_FORK: f->R.rax = forkk((const char*) a1, f); break;
 		case SYS_EXEC: f->R.rax = execc((const char*) a1); break;
 		case SYS_WAIT: f->R.rax = waitt((pid_t) a1); break;
 		case SYS_CREATE: f->R.rax = createe((const char*) a1, (unsigned) a2); break;
@@ -95,8 +93,8 @@ void exitt(int status) {
 	thread_exit();
 }
 
-pid_t forkk(const char *thread_name) {
-	return process_fork(thread_name);
+pid_t forkk(const char *thread_name, struct intr_frame* f) {
+	return process_fork(thread_name, f);
 }
 
 int execc(const char *file) {
@@ -235,7 +233,6 @@ struct fm* get_fm(int fd) {
 	for (struct list_elem *e = list_begin(&t->fm_list); e != list_end (&t->fm_list); e = list_next(e))
 	{
 		fm = list_entry (e, struct fm, elem);
-		// printf("Current fd: %d-----------------------------------------\n", fm->fd);
 		if (fm->fd==fd) return fm;
 	}
 	return NULL;

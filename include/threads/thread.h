@@ -127,8 +127,11 @@ struct thread {
 	struct list_elem child_elem;
 
 	enum thread_status exit_status;
+	struct semaphore sema_fork;
 	struct semaphore sema_wait;
 	struct semaphore sema_exit;
+
+	struct intr_frame parent_if;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */

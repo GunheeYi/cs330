@@ -226,8 +226,6 @@ thread_create (const char *name, int priority,
 
 #ifdef USERPROG
 	list_push_back(&thread_current()->child_list, &t->child_elem);
-	sema_init(&t->sema_wait, 0);
-	sema_init(&t->sema_exit, 0);
 #endif
 
 	/* Add to run queue. */
@@ -620,6 +618,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->fd_next = FD_NEXT_DEFAULT;
 
 	list_init(&t->child_list);
+
+	sema_init(&t->sema_fork, 0);
+	sema_init(&t->sema_wait, 0);
+	sema_init(&t->sema_exit, 0);
 #endif
 	if (t!=idle_thread) list_push_back(&all_list, &t->allelem);
 }
