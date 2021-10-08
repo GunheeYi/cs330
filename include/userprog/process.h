@@ -11,6 +11,6 @@ void process_exit (void);
 void process_activate (struct thread *next);
 
 struct thread *get_child(tid_t child_tid);
-void close_fm(struct fm* fm);
+// void close_fm(struct fm* fm);
 
 #endif /* userprog/process.h */

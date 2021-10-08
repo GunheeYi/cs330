@@ -173,18 +173,11 @@ __do_fork (void *aux) {
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
 	
-	struct fm* parent_fm;
-	struct fm* current_fm;
-	for (struct list_elem *e = list_begin(&parent->fm_list); e != list_end (&parent->fm_list); e = list_next(e))
+	for (int fd=FD_START; fd<FD_MAX; fd++)
 	{
-		parent_fm = list_entry (e, struct fm, elem);
-		
-		current_fm = palloc_get_page(0);
-		current_fm->fd = current->fd_next++;
-		current_fm->fp = file_duplicate(parent_fm->fp);
-		list_push_back(&current->fm_list, &current_fm->elem);
+		if (parent->fm[fd]==NULL) current->fm[fd] = NULL;
+		else current->fm[fd] = file_duplicate(parent->fm[fd]);
 	}
-	current->fd_next = parent->fd_next;
 	
 	process_init ();
 
@@ -266,11 +259,11 @@ struct thread * get_child(tid_t child_tid){
 	return NULL;
 }
 
-void close_fm(struct fm* fm) {
-	file_close(fm->fp);
-	list_remove(&fm->elem);
-	palloc_free_page(fm);
-}
+// void close_fm(struct fm* fm) {
+// 	file_close(fm->fp);
+// 	list_remove(&fm->elem);
+// 	palloc_free_page(fm);
+// }
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
@@ -317,15 +310,10 @@ process_exit (void) {
 	file_close(curr->executable);
 	// lock_release(&lock_file);
 
-	struct fm* fm;
-	for (struct list_elem *e = list_begin(&curr->fm_list); e != list_end (&curr->fm_list);)
+	for (int fd=FD_START; fd<FD_MAX; fd++)
 	{
-		fm = list_entry (e, struct fm, elem);
-		e = list_next(e);
-		
-		close_fm(fm);
+		if (curr->fm[fd]!=NULL) closee(fd);
 	}
-	curr->fd_next = FD_NEXT_DEFAULT;
 
 	// /-----------------------OTHER THINGS???????
 	sema_up(&curr->sema_wait); // allow parent process do things left (recording exit status & remove me from child list)

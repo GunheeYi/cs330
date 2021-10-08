@@ -1,0 +1,17 @@
+FAIL
+Kernel panic in run: PANIC at ../../threads/thread.c:299 in thread_current(): assertion `is_thread (t)' failed.
+Call stack: 0x80042187f9 0x8004207128 0x800420af9b 0x800420aafe 0x800420c475 0x8004220523 0x800421faf2 0x800421fbc2 0x800421e538 0x800421c976 0x800421c3bf 0x800421be59 0x8004207c74
+Translation of call stack:
+0x00000080042187f9: debug_panic (lib/kernel/debug.c:32)
+0x0000008004207128: thread_current (threads/thread.c:300)
+0x000000800420af9b: lock_held_by_current_thread (threads/synch.c:307)
+0x000000800420aafe: lock_acquire (threads/synch.c:205)
+0x000000800420c475: malloc (threads/malloc.c:118)
+0x0000008004220523: inode_read_at (filesys/inode.c:210)
+0x000000800421faf2: lookup (filesys/directory.c:88 (discriminator 1))
+0x000000800421fbc2: dir_lookup (filesys/directory.c:112)
+0x000000800421e538: filesys_open (filesys/filesys.c:86)
+0x000000800421c976: load (userprog/process.c:495)
+0x000000800421c3bf: process_exec (userprog/process.c:233)
+0x000000800421be59: initd (userprog/process.c:76)
+0x0000008004207c74: kernel_thread (threads/thread.c:573)
