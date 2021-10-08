@@ -84,6 +84,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 }
 
 void haltt() {
+	ASSERT(0);
 	power_off();
 }
 void exitt(int status) {
@@ -96,10 +97,13 @@ void exitt(int status) {
 }
 
 pid_t forkk(const char *thread_name, struct intr_frame* f) {
-	return process_fork(thread_name, f);
+	pid_t ret =  process_fork(thread_name, f);
+	ASSERT(ret!=0);
+	return ret;
 }
 
 int execc(const char *file) {
+	ASSERT(0);
 	if (is_not_mapped(file)) exitt(-1); // is bad ptr
 
 	if (process_exec(file) < 0 ){
@@ -110,6 +114,7 @@ int waitt(pid_t pid) {
 	return process_wait();
 }
 bool createe(const char *file, unsigned initial_size) {
+	ASSERT(0);
 	// if null pointer / virtual address for file is not mapped / file is empty
 	if (file == NULL || is_not_mapped(file) || file[0] == NULL) exitt(-1);
 
@@ -122,7 +127,7 @@ bool createe(const char *file, unsigned initial_size) {
 	return succeeded;
 }
 bool removee(const char *file) {
-
+	ASSERT(0);
 	// lock_acquire(&lock_file);
 	bool succeeded = filesys_remove(file);
 	// lock_release(&lock_file);
@@ -155,6 +160,7 @@ int openn(const char *file) {
 
 	// use palloc instead of initializing struct fd directly????
 	struct fm* new_file_map = palloc_get_page(0);
+	if (new_file_map==NULL) return -1;
 	// will palloc_get_page() ever fail? if so, should we immediately free the page back?????????
 	new_file_map->fd = curr->fd_next;
 	new_file_map->fp = fp;
@@ -165,12 +171,14 @@ int openn(const char *file) {
 	return curr->fd_next++;
 }
 int filesizee(int fd) {
+	ASSERT(0);
 	// lock_acquire(&lock_file);
 	int length = file_length(get_fm(fd)->fp);
 	// lock_release(&lock_file);
 	return length;
 }
 int readd(int fd, void *buffer, unsigned size) {
+	ASSERT(0);
 	// null pointer for buffer / buffer virtual address not mapped
 	if ( buffer==NULL || is_not_mapped(buffer) ) {
 		exitt(-1);
@@ -233,17 +241,20 @@ int writee(int fd, const void *buffer, unsigned size) {
 }
 
 void seekk(int fd, unsigned position) {
+	ASSERT(0);
 	// lock_acquire(&lock_file);
 	file_seek(get_fm(fd)->fp, position);
 	// lock_release(&lock_file);
 }
 unsigned telll(int fd) {
+	ASSERT(0);
 	// lock_acquire(&lock_file);
 	unsigned position =  file_tell(get_fm(fd)->fp);
 	// lock_release(&lock_file);
 	return position;
 }
 void closee(int fd) {
+	ASSERT(0);
 	struct fm* fm = get_fm(fd);
 	if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
 	// lock_acquire(&lock_file);

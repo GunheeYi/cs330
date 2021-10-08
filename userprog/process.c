@@ -94,6 +94,7 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	sema_down(&child->sema_fork);
 	if (child->exit_status==-1) return TID_ERROR; //-------------------necessary?
 	
+	ASSERT(child_tid!=0);
 	return child_tid;
 }
 
@@ -178,8 +179,10 @@ __do_fork (void *aux) {
 	for (struct list_elem *e = list_begin(&parent->fm_list); e != list_end (&parent->fm_list); e = list_next(e))
 	{
 		parent_fm = list_entry (e, struct fm, elem);
-		
 		current_fm = palloc_get_page(0);
+		if (current_fm==NULL) {
+			goto error;
+		}
 		current_fm->fd = current->fd_next++;
 		current_fm->fp = file_duplicate(parent_fm->fp);
 		list_push_back(&current->fm_list, &current_fm->elem);
@@ -195,6 +198,7 @@ __do_fork (void *aux) {
 	}
 		
 error:
+	current->exit_status = -1;
 	sema_up(&current->sema_fork);
 	thread_exit ();
 }

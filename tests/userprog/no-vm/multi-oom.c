@@ -120,6 +120,7 @@ make_children (void) {
 
     snprintf (child_name, sizeof child_name, "%s_%d_%s", "child", i, "O");
     pid = fork(child_name);
+    printf("PID: %d-------------------------------\n", pid);
     if (pid < 0) {
       exit (i);
     } else if (pid == 0) {
