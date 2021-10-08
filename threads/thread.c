@@ -225,19 +225,6 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 
 #ifdef USERPROG
-	// struct thread* curr = thread_current();
-	// list_init(&t->fm_list);
-	// struct list* curr_fm_list = &curr->fm_list;
-	// for (struct list_elem* e = list_begin(curr_fm_list); e != list_end(curr_fm_list); e = list_next(e)) {
-	// 	struct fm* curr_fm = list_entry(e, struct fm, elem);
-	// 	struct fm* t_fm = palloc_get_page(0);
-	// 	// will palloc_get_page() ever fail? if so, should we immediately free the page back?????????
-	// 	t_fm->fd = curr_fm->fd;
-	// 	t_fm->fp = curr_fm->fp;
-	// 	list_push_back(&t->fm_list, t_fm);
-	// }
-	// t->fd_next = curr->fd_next;
-
 	list_push_back(&thread_current()->child_list, &t->child_elem);
 #endif
 

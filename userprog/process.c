@@ -184,6 +184,7 @@ __do_fork (void *aux) {
 		current_fm->fp = file_duplicate(parent_fm->fp);
 		list_push_back(&current->fm_list, &current_fm->elem);
 	}
+	current->fd_next = parent->fd_next;
 	
 	process_init ();
 
@@ -316,12 +317,15 @@ process_exit (void) {
 	file_close(curr->executable);
 	// lock_release(&lock_file);
 
-	// struct fm* fm;
-	// for (struct list_elem *e = list_begin(&curr->fm_list); e != list_end (&curr->fm_list); e = list_next(e))
-	// {
-	// 	fm = list_entry (e, struct fm, elem);
-	// 	close_fm(fm);
-	// }
+	struct fm* fm;
+	for (struct list_elem *e = list_begin(&curr->fm_list); e != list_end (&curr->fm_list);)
+	{
+		fm = list_entry (e, struct fm, elem);
+		e = list_next(e);
+		
+		close_fm(fm);
+	}
+	curr->fd_next = FD_NEXT_DEFAULT;
 
 	// /-----------------------OTHER THINGS???????
 	sema_up(&curr->sema_wait); // allow parent process do things left (recording exit status & remove me from child list)
