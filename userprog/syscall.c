@@ -116,16 +116,16 @@ bool createe(const char *file, unsigned initial_size) {
 	// if file name too long
 	if ( strlen(file) > NAME_MAX ) return false;
 	
-	lock_acquire(&lock_file);
+	// lock_acquire(&lock_file);
 	bool succeeded = filesys_create(file, initial_size);
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 	return succeeded;
 }
 bool removee(const char *file) {
 
-	lock_acquire(&lock_file);
+	// lock_acquire(&lock_file);
 	bool succeeded = filesys_remove(file);
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 
 	return succeeded;
 
@@ -134,14 +134,22 @@ bool removee(const char *file) {
 }
 int openn(const char *file) {
 	// null pointer for file name / file name virtual address not mapped
-	if ( file==NULL || is_not_mapped(file) ) exitt(-1);
+	if ( file==NULL || is_not_mapped(file) ) {
+		exitt(-1);
+	}
 	// empty file
-	if ( file[0]==NULL ) return -1;
-	
+	if ( file[0]==NULL ) {
+		return -1;
+	}
+
 	lock_acquire(&lock_file);
 	struct file* fp = filesys_open(file);
-	lock_release(&lock_file);
-	if (fp==NULL) return -1;
+	
+	
+	if (fp==NULL) {
+		lock_release(&lock_file);
+		return -1;
+	}
 
 	struct thread* curr = thread_current();
 
@@ -150,16 +158,16 @@ int openn(const char *file) {
 	// will palloc_get_page() ever fail? if so, should we immediately free the page back?????????
 	new_file_map->fd = curr->fd_next;
 	new_file_map->fp = fp;
-	// new_file_map->elem = (struct list_elem) NULL; // unnecessary????
 
 	list_push_back(&curr->fm_list, &new_file_map->elem);
 
+	lock_release(&lock_file);
 	return curr->fd_next++;
 }
 int filesizee(int fd) {
-	lock_acquire(&lock_file);
+	// lock_acquire(&lock_file);
 	int length = file_length(get_fm(fd)->fp);
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 	return length;
 }
 int readd(int fd, void *buffer, unsigned size) {
@@ -175,6 +183,7 @@ int readd(int fd, void *buffer, unsigned size) {
 	if ( fd==1 ){
 		return -1;
 	} 
+
 	// reading from
 	// stdin
 	if ( fd==0 ) {
@@ -186,7 +195,6 @@ int readd(int fd, void *buffer, unsigned size) {
 		if ( fm==NULL ) {
 			exitt(-1);
 		} // fd has not been issued (bad)
-		
 		lock_acquire(&lock_file);
 		int size_read = file_read(fm->fp, buffer, size);
 		lock_release(&lock_file);
@@ -194,13 +202,14 @@ int readd(int fd, void *buffer, unsigned size) {
 	}
 }
 int writee(int fd, const void *buffer, unsigned size) {
-
 	// requested to write for size of 0
-	if ( size==0 ) return 0;
-
+	if ( size==0 ) {
+		return 0;
+	}
 	// trying to write to stdin
-	if ( fd==0 ) return -1;
-
+	if ( fd==0 ) {
+		return -1;
+	}
 	// virtual address for buffer is not mapped
 	if ( is_not_mapped(buffer) ) exitt(-1);
 	
@@ -213,8 +222,9 @@ int writee(int fd, const void *buffer, unsigned size) {
 	// file
 	else {
 		struct fm* fm = get_fm(fd);
-		if ( fm==NULL ) exitt(-1); // fd has not been issued (bad)
-
+		if ( fm==NULL ) { // fd has not been issued (bad)
+			exitt(-1);
+		}
 		lock_acquire(&lock_file);
 		int size_wrote = file_write(fm->fp, buffer, size);
 		lock_release(&lock_file);
@@ -223,22 +233,22 @@ int writee(int fd, const void *buffer, unsigned size) {
 }
 
 void seekk(int fd, unsigned position) {
-	lock_acquire(&lock_file);
+	// lock_acquire(&lock_file);
 	file_seek(get_fm(fd)->fp, position);
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 }
 unsigned telll(int fd) {
-	lock_acquire(&lock_file);
+	// lock_acquire(&lock_file);
 	unsigned position =  file_tell(get_fm(fd)->fp);
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 	return position;
 }
 void closee(int fd) {
 	struct fm* fm = get_fm(fd);
 	if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
-	lock_acquire(&lock_file);
+	// lock_acquire(&lock_file);
 	close_fm(fm);
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 }
 // int dup22();
 // void* mmapp();
@@ -264,5 +274,8 @@ struct fm* get_fm(int fd) {
 }
 
 bool is_not_mapped(uint64_t va) {
-	return pml4e_walk(thread_current()->pml4, va, false) == NULL;
+	// lock_acquire(&lock_file);
+	bool not_mapped = pml4e_walk(thread_current()->pml4, va, false) == NULL;
+	// lock_release(&lock_file);
+	return not_mapped;
 }

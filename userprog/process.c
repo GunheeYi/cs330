@@ -491,13 +491,14 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	bool success = false;
 	int i;
 
+	lock_acquire(&lock_file);
+
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
 		goto done;
 	process_activate (thread_current ());
 
-	lock_acquire(&lock_file);
 	/* Open executable file. */
 	file = filesys_open (file_name);
 	if (file == NULL) {
@@ -506,7 +507,6 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	}
 	file_deny_write(file);
 	t->executable = file;
-	lock_release(&lock_file);
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -587,7 +587,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 
 done:
 	/* We arrive here whether the load is successful or not. */
-	// file_close (file);
+	lock_release(&lock_file);
 	return success;
 }
 
