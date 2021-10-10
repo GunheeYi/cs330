@@ -135,6 +135,9 @@ struct thread {
 	struct intr_frame parent_if;
 
 	struct file* executable;
+
+	bool stdin_allowed;
+	bool stdout_allowed;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */

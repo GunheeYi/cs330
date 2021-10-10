@@ -66,7 +66,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_SEEK: seekk((int) a1, (unsigned) a2); break;
 		case SYS_TELL: f->R.rax = telll((int) a1); break;
 		case SYS_CLOSE: closee((int) a1); break;
-		// case SYS_DUP2: dup22(); break;
+		case SYS_DUP2: f->R.rax = dup22((int) a1, (int) a2); break;
 		// case SYS_MMAP: mmapp(); break;
 		// case SYS_MUNMAP: munmapp(); break;
 		// case SYS_CHDIR: chdirr(); break;
@@ -97,7 +97,6 @@ void exitt(int status) {
 
 pid_t forkk(const char *thread_name, struct intr_frame* f) {
 	pid_t ret =  process_fork(thread_name, f);
-	ASSERT(ret!=0);
 	return ret;
 }
 
@@ -195,7 +194,8 @@ int readd(int fd, void *buffer, unsigned size) {
 	// reading from
 	// stdin
 	if ( fd==0 ) {
-		return input_getc();
+		if (thread_current()->stdin_allowed) return input_getc();
+		else return -1;
 	}
 	// file
 	else {		
@@ -224,8 +224,10 @@ int writee(int fd, const void *buffer, unsigned size) {
 	// writing to 
 	// stdout
 	if ( fd==1 ) {
-		putbuf(buffer, size);
-		return size;
+		if (thread_current()->stdout_allowed) {
+			putbuf(buffer, size);
+			return size;
+		} else return -1;
 	}
 	// file
 	else {
@@ -252,13 +254,49 @@ unsigned telll(int fd) {
 	return position;
 }
 void closee(int fd) {
+	switch (fd) {
+		case 0:
+			thread_current()->stdin_allowed = false;
+			return;
+		case 1:
+			thread_current()->stdout_allowed = false;
+			return;
+	}
+
 	struct fm* fm = get_fm(fd);
 	if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
 	// lock_acquire(&lock_file);
 	close_fm(fm);
 	// lock_release(&lock_file);
 }
-// int dup22();
+int dup22(int oldfd, int newfd) {
+	struct thread* curr = thread_current();
+
+	struct fm* new_fm = get_fm(newfd);
+	lock_acquire(&lock_file);
+	if (new_fm!=NULL) {
+		// printf("NEW FD IS NULL-----------------------\n");
+		close_fm(new_fm); // if new fd was already open, silently close
+	}
+	lock_release(&lock_file);
+
+	struct fm* old_fm = get_fm(oldfd);
+	if (old_fm==NULL) {
+		// printf("OLD FD IS NULL-----------------------\n");
+		return -1; // old fd is not valid
+	}
+	if (oldfd==newfd) return newfd; // old fd is not valid and is same with new fd
+
+	new_fm = palloc_get_page(PAL_USER);
+	if (new_fm==NULL) {
+		return -1;
+	}
+	new_fm->fd = newfd;
+	new_fm->fp = old_fm->fp;
+	list_push_back(&curr->fm_list, &new_fm->elem);
+
+	return newfd;
+};
 // void* mmapp();
 // void munmapp();
 // bool chdirr();

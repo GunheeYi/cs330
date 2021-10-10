@@ -97,7 +97,6 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 		// palloc_free_page(child);
 		return TID_ERROR; //-------------------necessary?
 	}
-	ASSERT(child_tid!=0);
 	return child_tid;
 }
 
@@ -120,7 +119,8 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
-	newpage = palloc_get_page(0);
+	newpage = palloc_get_page(PAL_USER);
+	if (newpage==NULL) return false;
 
 	/* 4. TODO: Duplicate parent's page to the new page and
 	 *    TODO: check whether parent's page is writable or not (set WRITABLE
@@ -186,7 +186,7 @@ __do_fork (void *aux) {
 			goto error;
 		}
 		current_fm->fp = file_duplicate(parent_fm->fp);
-		ASSERT(current_fm->fp!=NULL);
+		if (current_fm->fp==NULL) goto error;
 		current_fm->fd = parent_fm->fd;
 		list_push_back(&current->fm_list, &current_fm->elem);
 	}
@@ -333,6 +333,9 @@ process_exit (void) {
 		struct list_elem* e = list_pop_front(fm_list);
 		struct fm* fm = list_entry(e, struct fm, elem);
 		// lock_acquire(&lock_file);
+		
+		// if !(page_from)
+
 		file_close(fm->fp);
 		// lock_release(&lock_file);
 		palloc_free_page(fm);

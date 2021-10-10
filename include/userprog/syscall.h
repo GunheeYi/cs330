@@ -27,7 +27,7 @@ int writee(int fd, const void *buffer, unsigned size);
 void seekk(int fd, unsigned position);
 unsigned telll(int fd);
 void closee(int fd);
-// int dup22();
+int dup22(int oldfd, int newfd);
 // void* mmapp();
 // void munmapp();
 // bool chdirr();
