@@ -41,7 +41,7 @@ void closee(int fd);
 
 struct lock lock_file;
 
-// struct fm* get_fm(int fd);
+struct fm* get_fm(int fd);
 bool is_not_mapped(uint64_t va);
 
 #endif /* userprog/syscall.h */

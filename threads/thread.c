@@ -614,9 +614,8 @@ init_thread (struct thread *t, const char *name, int priority) {
     t->waiting_lock = NULL;
 
 #ifdef USERPROG
-	for (int fd = FD_START; fd < FD_MAX; fd++) {                                                         
-    	t->fm[fd] = NULL;                                                                
-	}   
+	list_init(&t->fm_list);
+	t->fd_next = FD_NEXT_DEFAULT;
 
 	list_init(&t->child_list);
 

@@ -170,11 +170,11 @@ int openn(const char *file) {
 	list_push_back(&curr->fm_list, &new_file_map->elem);
 
 	lock_release(&lock_file);
-	return -1;
+	return curr->fd_next++;
 }
 int filesizee(int fd) {
 	// lock_acquire(&lock_file);
-	int length = file_length(thread_current()->fm[fd]);
+	int length = file_length(get_fm(fd)->fp);
 	// lock_release(&lock_file);
 	return length;
 }
@@ -198,11 +198,13 @@ int readd(int fd, void *buffer, unsigned size) {
 		return input_getc();
 	}
 	// file
-	else {
-		struct thread* curr = thread_current();
-		if (curr->fm[fd]==NULL) exitt(-1); // fd has not been issued (bad)
+	else {		
+		struct fm* fm = get_fm(fd);
+		if ( fm==NULL ) {
+			exitt(-1);
+		} // fd has not been issued (bad)
 		lock_acquire(&lock_file);
-		int size_read = file_read(curr->fm[fd], buffer, size);
+		int size_read = file_read(fm->fp, buffer, size);
 		lock_release(&lock_file);
 		return size_read;
 	}
@@ -227,10 +229,12 @@ int writee(int fd, const void *buffer, unsigned size) {
 	}
 	// file
 	else {
-		struct thread* curr = thread_current();
-		if (curr->fm[fd]==NULL) exitt(-1); // fd has not been issued (bad)
+		struct fm* fm = get_fm(fd);
+		if ( fm==NULL ) { // fd has not been issued (bad)
+			exitt(-1);
+		}
 		lock_acquire(&lock_file);
-		int size_wrote = file_write(curr->fm[fd], buffer, size);
+		int size_wrote = file_write(fm->fp, buffer, size);
 		lock_release(&lock_file);
 		return size_wrote;
 	}
@@ -238,20 +242,21 @@ int writee(int fd, const void *buffer, unsigned size) {
 
 void seekk(int fd, unsigned position) {
 	// lock_acquire(&lock_file);
-	file_seek(thread_current()->fm[fd], position);
+	file_seek(get_fm(fd)->fp, position);
 	// lock_release(&lock_file);
 }
 unsigned telll(int fd) {
 	// lock_acquire(&lock_file);
-	unsigned position =  file_tell(thread_current()->fm[fd]);
+	unsigned position =  file_tell(get_fm(fd)->fp);
 	// lock_release(&lock_file);
 	return position;
 }
 void closee(int fd) {
-	struct thread* curr = thread_current();
-	if ( curr->fm[fd]==NULL ) exitt(-1);
-	file_close(curr->fm[fd]);
-	curr->fm[fd]=NULL;
+	struct fm* fm = get_fm(fd);
+	if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
+	// lock_acquire(&lock_file);
+	close_fm(fm);
+	// lock_release(&lock_file);
 }
 // int dup22();
 // void* mmapp();
@@ -265,16 +270,16 @@ void closee(int fd) {
 // int mountt();
 // int umountt();
 
-// struct fm* get_fm(int fd) {
-// 	struct thread* t = thread_current();
-// 	struct fm* fm;
-// 	for (struct list_elem *e = list_begin(&t->fm_list); e != list_end (&t->fm_list); e = list_next(e))
-// 	{
-// 		fm = list_entry (e, struct fm, elem);
-// 		if (fm->fd==fd) return fm;
-// 	}
-// 	return NULL;
-// }
+struct fm* get_fm(int fd) {
+	struct thread* t = thread_current();
+	struct fm* fm;
+	for (struct list_elem *e = list_begin(&t->fm_list); e != list_end (&t->fm_list); e = list_next(e))
+	{
+		fm = list_entry (e, struct fm, elem);
+		if (fm->fd==fd) return fm;
+	}
+	return NULL;
+}
 
 bool is_not_mapped(uint64_t va) {
 	// lock_acquire(&lock_file);

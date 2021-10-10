@@ -31,13 +31,12 @@ typedef int tid_t;
 #define NICE_DEFAULT 0
 #define RECENT_CPU_DEFAULT 0
 
-#define FD_START 2
-// struct fm {
-//     int fd;
-// 	struct file* fp;
-//     struct list_elem elem;
-// };
-#define FD_MAX 130
+struct fm {
+    int fd;
+	struct file* fp;
+    struct list_elem elem;
+};
+#define FD_NEXT_DEFAULT 2
 
 /* A kernel thread or user process.
  *
@@ -121,7 +120,8 @@ struct thread {
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
 	
-	struct file* fm[FD_MAX];
+	struct list fm_list;
+	int fd_next;
 	
 	struct list child_list;
 	struct list_elem child_elem;
