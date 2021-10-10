@@ -190,7 +190,6 @@ __do_fork (void *aux) {
 		current_fm->fd = parent_fm->fd;
 		list_push_back(&current->fm_list, &current_fm->elem);
 	}
-	current->fd_next = parent->fd_next;
 	
 	process_init ();
 
@@ -273,11 +272,11 @@ struct thread * get_child(tid_t child_tid){
 	return NULL;
 }
 
-void close_fm(struct fm* fm) {
-	file_close(fm->fp);
-	list_remove(&fm->elem);
-	palloc_free_page(fm);
-}
+// void close_fm(struct fm* fm) {
+// 	file_close(fm->fp);
+// 	list_remove(&fm->elem);
+// 	palloc_free_page(fm);
+// }
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
