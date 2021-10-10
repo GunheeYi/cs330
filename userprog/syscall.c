@@ -213,6 +213,7 @@ int readd(int fd, void *buffer, unsigned size) {
 }
 int writee(int fd, const void *buffer, unsigned size) {
 	// requested to write for size of 0
+	// ASSERT(0);
 	if ( size==0 ) {
 		return 0;
 	}
@@ -235,7 +236,8 @@ int writee(int fd, const void *buffer, unsigned size) {
 	else {
 		struct fm* fm = get_fm(fd);
 		if ( fm==NULL ) { // fd has not been issued (bad)
-			exitt(-1);
+			// exitt(-1);
+			return -1;
 		}
 		lock_acquire(&lock_file);
 		int size_wrote = file_write(fm->fp, buffer, size);
@@ -246,11 +248,17 @@ int writee(int fd, const void *buffer, unsigned size) {
 
 void seekk(int fd, unsigned position) {
 	// lock_acquire(&lock_file);
+	if (get_fm(fd) == NULL){
+		return;
+	}
 	file_seek(get_fm(fd)->fp, position);
 	// lock_release(&lock_file);
 }
 unsigned telll(int fd) {
 	// lock_acquire(&lock_file);
+	if (get_fm(fd) == NULL){
+		return;
+	}
 	unsigned position =  file_tell(get_fm(fd)->fp);
 	// lock_release(&lock_file);
 	return position;
@@ -265,30 +273,59 @@ void closee(int fd) {
 			return;
 	}
 
-	struct fm* fm = get_fm(fd);
+	struct fm* main_fm = get_fm(fd);
 	if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
-	// lock_acquire(&lock_file);
-	close_fm(fm);
-	// lock_release(&lock_file);
+	close_fm(main_fm);
 }
 int dup22(int oldfd, int newfd) {
 	struct thread* curr = thread_current();
-
-	struct fm* new_fm = get_fm(newfd);
-	// lock_acquire(&lock_file);
-	if (new_fm!=NULL) {
-		// printf("NEW FD IS NULL-----------------------\n");
-		close_fm(new_fm); // if new fd was already open, silently close
-	}
-	// lock_release(&lock_file);
-
+	
 	struct fm* old_fm = get_fm(oldfd);
 	if (old_fm==NULL) {
 		// printf("OLD FD IS NULL-----------------------\n");
 		return -1; // old fd is not valid
 	}
+
 	if (oldfd==newfd) return newfd; // old fd is not valid and is same with new fd
 
+
+	struct fm* new_fm = get_fm(newfd);
+	struct fm* fm;
+	// lock_acquire(&lock_file);
+	if (new_fm!=NULL) {
+		// printf("NEW FD IS NULL-----------------------\n");
+		// close_fm(new_fm); // if new fd was already open, silently close
+		// 같은 pointer들 fm도 다 list에서 빼고 지워야함 
+
+		fm = new_fm;
+		fm->file_exists = false;
+		while (fm->copied_fd>0 && fm->copied_fd != new_fm->fd) {
+			fm = get_fm(fm->copied_fd);
+			fm->file_exists = false;
+		}
+
+		// struct thread* curr = thread_current();
+		// struct list_elem* e = list_begin(&curr->fm_list);
+		// while (e != list_end(&curr->fm_list)){
+		// 	struct fm* fm = list_entry(e, struct fm, elem);
+		// 	e = list_next(e);
+		// 	// if (fm != NULL) close_fm(fm);
+			
+		// }
+		// // for (struct list_elem* e = list_begin(&curr->fm_list); e != list_end(&curr->fm_list);) {
+			
+		// 	struct fm* fm = list_entry(e, struct fm, elem);
+		// 	if (fm == NULL) continue;
+		// 	// if (fm->file_exists == false) {
+		// 		// close_fm(fm);
+		// 		// list_remove(&fm->elem);
+		// 		// palloc_free_page(fm);
+		// 	// }
+		// 	e = list_next(e);
+
+		// }
+	}
+	
 	new_fm = palloc_get_page(PAL_USER);
 	if (new_fm==NULL) {
 		return -1;
@@ -328,4 +365,13 @@ bool is_not_mapped(uint64_t va) {
 	bool not_mapped = pml4e_walk(thread_current()->pml4, va, false) == NULL;
 	// lock_release(&lock_file);
 	return not_mapped;
+}
+
+void close_fm(struct fm* fm) {
+	if (fm->file_exists == true){
+		file_close(fm->fp);
+	}
+	// fm->file_exists = false;
+	list_remove(&fm->elem);
+	palloc_free_page(fm);
 }

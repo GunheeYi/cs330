@@ -93,7 +93,6 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	struct thread* child = get_child(child_tid);
 	sema_down(&child->sema_fork);
 	if (!child->fork_successful) {
-		// printf("aaaaaaa------------------------\n");
 		// palloc_free_page(child);
 		return TID_ERROR; //-------------------necessary?
 	}
@@ -189,7 +188,7 @@ __do_fork (void *aux) {
 		if (current_fm->fp==NULL) goto error;
 		current_fm->fd = parent_fm->fd;
 		current_fm->copied_fd = parent_fm->copied_fd;
-		current_fm->file_exists = parent_fm->file_exists;
+		current_fm->file_exists = true;
 		list_push_back(&current->fm_list, &current_fm->elem);
 	}
 	current->fd_next = parent->fd_next;
@@ -275,11 +274,14 @@ struct thread * get_child(tid_t child_tid){
 	return NULL;
 }
 
-void close_fm(struct fm* fm) {
-	file_close(fm->fp);
-	list_remove(&fm->elem);
-	palloc_free_page(fm);
-}
+// void close_fm(struct fm* fm) {
+// 	if (fm->file_exists == true){
+// 		file_close(fm->fp);
+// 	}
+// 	fm->file_exists = false;
+// 	list_remove(&fm->elem);
+// 	palloc_free_page(fm);
+// }
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
