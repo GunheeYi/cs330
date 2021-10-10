@@ -165,6 +165,8 @@ int openn(const char *file) {
 	// will palloc_get_page() ever fail? if so, should we immediately free the page back?????????
 	new_file_map->fd = curr->fd_next;
 	new_file_map->fp = fp;
+	new_file_map->copied_fd = -1;
+	new_file_map->file_exists = true;
 
 	list_push_back(&curr->fm_list, &new_file_map->elem);
 
@@ -273,12 +275,12 @@ int dup22(int oldfd, int newfd) {
 	struct thread* curr = thread_current();
 
 	struct fm* new_fm = get_fm(newfd);
-	lock_acquire(&lock_file);
+	// lock_acquire(&lock_file);
 	if (new_fm!=NULL) {
 		// printf("NEW FD IS NULL-----------------------\n");
 		close_fm(new_fm); // if new fd was already open, silently close
 	}
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 
 	struct fm* old_fm = get_fm(oldfd);
 	if (old_fm==NULL) {
@@ -293,6 +295,8 @@ int dup22(int oldfd, int newfd) {
 	}
 	new_fm->fd = newfd;
 	new_fm->fp = old_fm->fp;
+	new_fm->copied_fd = old_fm->copied_fd;
+	old_fm->copied_fd = new_fm->fd;
 	list_push_back(&curr->fm_list, &new_fm->elem);
 
 	return newfd;

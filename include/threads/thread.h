@@ -35,6 +35,8 @@ struct fm {
     int fd;
 	struct file* fp;
     struct list_elem elem;
+	int copied_fd;
+	bool file_exists;
 };
 #define FD_NEXT_DEFAULT 2
 

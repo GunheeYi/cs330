@@ -188,6 +188,8 @@ __do_fork (void *aux) {
 		current_fm->fp = file_duplicate(parent_fm->fp);
 		if (current_fm->fp==NULL) goto error;
 		current_fm->fd = parent_fm->fd;
+		current_fm->copied_fd = parent_fm->copied_fd;
+		current_fm->file_exists = parent_fm->file_exists;
 		list_push_back(&current->fm_list, &current_fm->elem);
 	}
 	current->fd_next = parent->fd_next;
@@ -329,15 +331,23 @@ process_exit (void) {
 	// }
 	// printf("-END\n");
 
+	for (struct list_elem* e = list_begin(fm_list); e != list_end(fm_list); e = list_next(e)) {
+		
+		struct fm* main_fm = list_entry(e, struct fm, elem);
+		if (main_fm->file_exists) {
+			file_close(main_fm->fp);
+			main_fm->file_exists = false;
+			struct fm* fm = main_fm;
+			while (fm->copied_fd>0 && fm->copied_fd!=main_fm->fd) {
+				fm = get_fm(fm->copied_fd);
+				fm->file_exists = false;
+			}
+		}
+	}
+
 	while (!list_empty(fm_list)) {
 		struct list_elem* e = list_pop_front(fm_list);
 		struct fm* fm = list_entry(e, struct fm, elem);
-		// lock_acquire(&lock_file);
-		
-		// if !(page_from)
-
-		file_close(fm->fp);
-		// lock_release(&lock_file);
 		palloc_free_page(fm);
 	}
 	// curr->fd_next = FD_NEXT_DEFAULT;
