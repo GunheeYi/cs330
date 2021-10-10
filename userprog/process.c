@@ -92,8 +92,11 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	}
 	struct thread* child = get_child(child_tid);
 	sema_down(&child->sema_fork);
-	if (child->exit_status==-1) return TID_ERROR; //-------------------necessary?
-	
+	if (!child->fork_successful) {
+		// printf("aaaaaaa------------------------\n");
+		// palloc_free_page(child);
+		return TID_ERROR; //-------------------necessary?
+	}
 	ASSERT(child_tid!=0);
 	return child_tid;
 }
@@ -175,16 +178,16 @@ __do_fork (void *aux) {
 	 * TODO:       the resources of parent.*/
 	
 	struct fm* parent_fm;
-	struct fm* current_fm;
 	for (struct list_elem *e = list_begin(&parent->fm_list); e != list_end (&parent->fm_list); e = list_next(e))
 	{
 		parent_fm = list_entry (e, struct fm, elem);
-		current_fm = palloc_get_page(0);
+		struct fm* current_fm = palloc_get_page(PAL_USER);
 		if (current_fm==NULL) {
 			goto error;
 		}
-		current_fm->fd = current->fd_next++;
 		current_fm->fp = file_duplicate(parent_fm->fp);
+		ASSERT(current_fm->fp!=NULL);
+		current_fm->fd = parent_fm->fd;
 		list_push_back(&current->fm_list, &current_fm->elem);
 	}
 	current->fd_next = parent->fd_next;
@@ -198,7 +201,7 @@ __do_fork (void *aux) {
 	}
 		
 error:
-	current->exit_status = -1;
+	current->fork_successful = false;
 	sema_up(&current->sema_fork);
 	thread_exit ();
 }
@@ -317,19 +320,34 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
-	// lock_acquire(&lock_file);
-	file_close(curr->executable);
-	// lock_release(&lock_file);
+	struct list* fm_list = &curr->fm_list;
 
-	struct fm* fm;
-	for (struct list_elem *e = list_begin(&curr->fm_list); e != list_end (&curr->fm_list);)
-	{
-		fm = list_entry (e, struct fm, elem);
-		e = list_next(e);
-		
-		close_fm(fm);
+	// printf("CURRENT PID: %d------------------------------\n", curr->tid);
+	// printf("CURRENT FM_LIST: BEGIN");
+	// for (struct list_elem* e = list_begin(fm_list); e!=list_end(fm_list); e = list_next(e)) {
+	// 	printf("-%d,%d", list_entry(e, struct fm, elem)->fd, list_entry(e, struct fm, elem)->fp);
+	// }
+	// printf("-END\n");
+
+	while (!list_empty(fm_list)) {
+		struct list_elem* e = list_pop_front(fm_list);
+		struct fm* fm = list_entry(e, struct fm, elem);
+		// lock_acquire(&lock_file);
+		file_close(fm->fp);
+		// lock_release(&lock_file);
+		palloc_free_page(fm);
 	}
-	curr->fd_next = FD_NEXT_DEFAULT;
+	// curr->fd_next = FD_NEXT_DEFAULT;
+
+	// printf("CURRENT FM_LIST: BEGIN");
+	// for (struct list_elem* e = list_begin(fm_list); e!=list_end(fm_list); e = list_next(e)) {
+	// 	printf("-%d", list_entry(e, struct fm, elem)->fd);
+	// }
+	// printf("-END\n");
+
+	// lock_acquire(&lock_file);
+	if (curr->executable!=NULL) file_close(curr->executable);
+	// lock_release(&lock_file);
 
 	// /-----------------------OTHER THINGS???????
 	sema_up(&curr->sema_wait); // allow parent process do things left (recording exit status & remove me from child list)

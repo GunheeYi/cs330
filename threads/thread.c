@@ -622,6 +622,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	sema_init(&t->sema_fork, 0);
 	sema_init(&t->sema_wait, 0);
 	sema_init(&t->sema_exit, 0);
+	t->fork_successful = true;
 #endif
 	if (t!=idle_thread) list_push_back(&all_list, &t->allelem);
 }

@@ -130,6 +130,7 @@ struct thread {
 	struct semaphore sema_fork;
 	struct semaphore sema_wait;
 	struct semaphore sema_exit;
+	bool fork_successful;
 
 	struct intr_frame parent_if;
 
