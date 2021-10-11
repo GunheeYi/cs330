@@ -31,12 +31,19 @@ typedef int tid_t;
 #define NICE_DEFAULT 0
 #define RECENT_CPU_DEFAULT 0
 
+enum IO_mode {
+	FILE_SYSTEMM,
+	STDINN,
+	STDOUTT
+};
+
 struct fm {
     int fd;
 	struct file* fp;
     struct list_elem elem;
 	int copied_fd;
 	bool file_exists;
+	enum IO_mode mode;
 };
 #define FD_NEXT_DEFAULT 2
 

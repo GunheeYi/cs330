@@ -166,6 +166,7 @@ int openn(const char *file) {
 	new_file_map->fp = fp;
 	new_file_map->copied_fd = -1;
 	new_file_map->file_exists = true;
+	new_file_map->mode = FILE_SYSTEMM;
 
 	list_push_back(&curr->fm_list, &new_file_map->elem);
 
@@ -187,23 +188,24 @@ int readd(int fd, void *buffer, unsigned size) {
 	if ( size==0 ) {
 		return 0;
 	}
+
+	struct fm* fm = get_fm(fd);
+	if ( fm==NULL ) {
+			exitt(-1);
+	} // fd has not been issued (bad)
+
 	// trying to read from stdout
-	if ( fd==1 ){
+	if ( fm->mode==STDOUTT ){
 		return -1;
 	} 
 
 	// reading from
 	// stdin
-	if ( fd==0 ) {
-		if (thread_current()->stdin_allowed) return input_getc();
-		else return -1;
+	if ( fm->mode==STDINN ) {
+		return input_getc();
 	}
 	// file
 	else {		
-		struct fm* fm = get_fm(fd);
-		if ( fm==NULL ) {
-			exitt(-1);
-		} // fd has not been issued (bad)
 		lock_acquire(&lock_file);
 		int size_read = file_read(fm->fp, buffer, size);
 		lock_release(&lock_file);
@@ -216,8 +218,15 @@ int writee(int fd, const void *buffer, unsigned size) {
 	if ( size==0 ) {
 		return 0;
 	}
+
+	struct fm* fm = get_fm(fd);
+	if ( fm==NULL ) { // fd has not been issued (bad)
+		// exitt(-1);
+		return -1;
+	}
+
 	// trying to write to stdin
-	if ( fd==0 ) {
+	if ( fm->mode==STDINN ) {
 		return -1;
 	}
 	// virtual address for buffer is not mapped
@@ -225,19 +234,12 @@ int writee(int fd, const void *buffer, unsigned size) {
 	
 	// writing to 
 	// stdout
-	if ( fd==1 ) {
-		if (thread_current()->stdout_allowed) {
-			putbuf(buffer, size);
-			return size;
-		} else return -1;
+	if ( fm->mode==STDOUTT ) {
+		putbuf(buffer, size);
+		return size;
 	}
 	// file
 	else {
-		struct fm* fm = get_fm(fd);
-		if ( fm==NULL ) { // fd has not been issued (bad)
-			// exitt(-1);
-			return -1;
-		}
 		lock_acquire(&lock_file);
 		int size_wrote = file_write(fm->fp, buffer, size);
 		lock_release(&lock_file);
@@ -246,31 +248,16 @@ int writee(int fd, const void *buffer, unsigned size) {
 }
 
 void seekk(int fd, unsigned position) {
-	// lock_acquire(&lock_file);
-	if (get_fm(fd) == NULL){
-		return;
-	}
-	file_seek(get_fm(fd)->fp, position);
-	// lock_release(&lock_file);
+	struct fm* fm = get_fm(fd);
+	if (fm==NULL || fm->mode!=FILE_SYSTEMM) return;
+	file_seek(fm->fp, position);
 }
 unsigned telll(int fd) {
-	// lock_acquire(&lock_file);
-	if (get_fm(fd) == NULL){
-		return;
-	}
-	unsigned position =  file_tell(get_fm(fd)->fp);
-	// lock_release(&lock_file);
-	return position;
+	struct fm* fm = get_fm(fd);
+	if (fm == NULL || fm->mode!=FILE_SYSTEMM) return -1;
+	return file_tell(fm->fp);
 }
 void closee(int fd) {
-	switch (fd) {
-		case 0:
-			thread_current()->stdin_allowed = false;
-			return;
-		case 1:
-			thread_current()->stdout_allowed = false;
-			return;
-	}
 
 	struct fm* main_fm = get_fm(fd);
 	if ( main_fm==NULL ) return; // fd has not been issued (bad)
@@ -304,6 +291,8 @@ int dup22(int oldfd, int newfd) {
 		new_fm->copied_fd = old_fm->fd;
 	}
 	old_fm->copied_fd = new_fm->fd;
+	new_fm->file_exists = old_fm->file_exists;
+	new_fm->mode = old_fm->mode;
 	
 	list_push_back(&curr->fm_list, &new_fm->elem);
 
@@ -357,7 +346,7 @@ void close_fm(struct fm* main_fm) {
 			end_fm->copied_fd = main_fm->copied_fd;
 		}
 	} else { // new fd stands alone (no dup2ed fds)
-		file_close(main_fm->fp);
+		if (main_fm->mode==FILE_SYSTEMM) file_close(main_fm->fp);
 	}
 	list_remove(&main_fm->elem);
 	palloc_free_page(main_fm);

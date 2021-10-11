@@ -184,11 +184,18 @@ __do_fork (void *aux) {
 		if (current_fm==NULL) {
 			goto error;
 		}
-		current_fm->fp = file_duplicate(parent_fm->fp);
-		if (current_fm->fp==NULL) goto error;
+
+		if (parent_fm->mode==FILE_SYSTEMM) {
+			current_fm->fp = file_duplicate(parent_fm->fp);
+			if (current_fm->fp==NULL) goto error;
+		} else {
+			current_fm->fp = NULL;
+		}
 		current_fm->fd = parent_fm->fd;
 		current_fm->copied_fd = parent_fm->copied_fd;
 		current_fm->file_exists = parent_fm->file_exists;
+		current_fm->mode = parent_fm->mode;
+
 		list_push_back(&current->fm_list, &current_fm->elem);
 	}
 	current->fd_next = parent->fd_next;
@@ -533,6 +540,22 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	}
 	file_deny_write(file);
 	t->executable = file;
+
+	struct fm* fm_stdin = palloc_get_page(PAL_USER);
+	fm_stdin->fd = 0;
+	fm_stdin->fp = NULL;
+	fm_stdin->copied_fd = -1;
+	fm_stdin->file_exists = false;
+	fm_stdin->mode = STDINN;
+	list_push_back(&t->fm_list, &fm_stdin->elem);
+
+	struct fm* fm_stdout = palloc_get_page(PAL_USER);
+	fm_stdout->fd = 1;
+	fm_stdout->fp = NULL;
+	fm_stdout->copied_fd = -1;
+	fm_stdout->file_exists = false;
+	fm_stdout->mode = STDOUTT;
+	list_push_back(&t->fm_list, &fm_stdout->elem);
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
