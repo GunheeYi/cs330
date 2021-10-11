@@ -298,8 +298,13 @@ int dup22(int oldfd, int newfd) {
 	}
 	new_fm->fd = newfd;
 	new_fm->fp = old_fm->fp;
-	new_fm->copied_fd = old_fm->copied_fd;
+	if (old_fm->copied_fd>0) {
+		new_fm->copied_fd = old_fm->copied_fd;
+	} else {
+		new_fm->copied_fd = old_fm->fd;
+	}
 	old_fm->copied_fd = new_fm->fd;
+	
 	list_push_back(&curr->fm_list, &new_fm->elem);
 
 	return newfd;
@@ -334,6 +339,16 @@ bool is_not_mapped(uint64_t va) {
 }
 
 void close_fm(struct fm* main_fm) {
+
+	// struct thread* curr = thread_current();
+	// printf("Close fm requested.-----------------------------------------\n");
+	// for (struct list_elem* e = list_begin(&curr->fm_list); e != list_end(&curr->fm_list); e = list_next(e)) {
+	// 	struct fm* fm = list_entry(e, struct fm, elem);
+	// 	printf("Fd %d points to fd %d.\n", fm->fd, fm->copied_fd);
+	// }
+	// printf("-----------------------------------------------------------\n");
+
+
 	if (main_fm->copied_fd > 0) { // new fd has fellow dup2ed fds
 		struct fm* end_fm = get_fm(main_fm->copied_fd);
 		if (end_fm->copied_fd==main_fm->fd) end_fm->copied_fd = -1; // only one fellow fd (the two fds points to each other)
