@@ -614,6 +614,8 @@ init_thread (struct thread *t, const char *name, int priority) {
     t->waiting_lock = NULL;
 
 #ifdef USERPROG
+	t->executable = NULL;
+
 	list_init(&t->fm_list);
 	t->fd_next = FD_NEXT_DEFAULT;
 

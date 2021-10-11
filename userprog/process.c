@@ -326,15 +326,56 @@ process_exit (void) {
 
 	struct list* fm_list = &curr->fm_list;
 	struct fm* main_fm;
+
+	//---------------------------------------------------------------------------------------------------
+	// remove fms that point to executable from fm_list first
+	// if (curr->executable!=NULL) {
+	// 	for (struct list_elem* e = list_begin(fm_list); e != list_end(fm_list);) {
+	// 		main_fm = list_entry(e, struct fm, elem);
+	// 		if (main_fm->fp==curr->executable) {
+	// 			e = list_remove(e);
+	// 			palloc_free_page(main_fm);
+	// 		} else e = list_next(e);
+	// 	}
+	// 	// file_close(curr->executable);
+	// }
+
 	// ASSERT(0);
+	// for (struct list_elem* e = list_begin(fm_list); e != list_end(fm_list); e = list_next(e)) {
+		
+	// 	// struct fm* main_fm = list_entry(e, struct fm, elem);
+	// 	main_fm = list_entry(e, struct fm, elem);
+	// 	ASSERT(main_fm!=NULL);
+	// 	// ASSERT(main_fm->fp!=curr->executable);
+	// 	if (main_fm->file_exists) {
+	// 		// printf("main_fm fd, %d----------\n", main_fm->fd);
+	// 		file_close(main_fm->fp);
+	// 		main_fm->file_exists = false;
+	// 		if (main_fm->copied_fd>0) {
+	// 			struct fm* temp_fm = main_fm;
+	// 			while (temp_fm->copied_fd!=main_fm->fd) {
+	// 				temp_fm = get_fm(temp_fm->copied_fd);
+	// 				temp_fm->file_exists = false;
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// while (!list_empty(fm_list)) {
+	// 	struct list_elem* e = list_pop_front(fm_list);
+	// 	struct fm* fm = list_entry(e, struct fm, elem);
+	// 	palloc_free_page(fm);
+	// }
+
+	// if (curr->executable!=NULL) file_close(curr->executable);
+	//---------------------------------------------------------------------------------------------------
+
 	for (struct list_elem* e = list_begin(fm_list); e != list_end(fm_list); e = list_next(e)) {
 		
 		// struct fm* main_fm = list_entry(e, struct fm, elem);
 		main_fm = list_entry(e, struct fm, elem);
 		if (main_fm == NULL) break;
 		if (main_fm->file_exists) {
-			// printf("main_fm fd, %d----------\n", main_fm->fd);
-			// file_close(main_fm->fp);
+			file_close(main_fm->fp);
 			main_fm->file_exists = false;
 			struct fm* fm = main_fm;
 
@@ -352,9 +393,9 @@ process_exit (void) {
 		palloc_free_page(fm);
 	}
 
-	
-
 	if (curr->executable!=NULL) file_close(curr->executable);
+
+	//---------------------------------------------------------------------------------------------------
 
 	sema_up(&curr->sema_wait); // allow parent process do things left (recording exit status & remove me from child list)
 	sema_down(&curr->sema_exit); // proceed exitting completely if allowed by parent process

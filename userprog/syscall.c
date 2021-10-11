@@ -273,21 +273,10 @@ void closee(int fd) {
 	}
 
 	struct fm* main_fm = get_fm(fd);
-	if ( get_fm(fd)==NULL ) return; // fd has not been issued (bad)
-	// close_fm(main_fm);
+	if ( main_fm==NULL ) return; // fd has not been issued (bad)
 	
-	if (main_fm->file_exists == true){
-		file_close(main_fm->fp);
-	}
+	close_fm(main_fm);
 
-	
-	// struct fm* fm;
-	// fm->file_exists = false;
-	list_remove(&main_fm->elem);
-	palloc_free_page(main_fm);
-
-
-// }
 }
 int dup22(int oldfd, int newfd) {
 	struct thread* curr = thread_current();
@@ -300,43 +289,8 @@ int dup22(int oldfd, int newfd) {
 
 	if (oldfd==newfd) return newfd; // old fd is not valid and is same with new fd
 
-
 	struct fm* new_fm = get_fm(newfd);
-	struct fm* fm;
-	// lock_acquire(&lock_file);
-	if (new_fm!=NULL) {
-		// printf("NEW FD IS NULL-----------------------\n");
-		// close_fm(new_fm); // if new fd was already open, silently close
-		// 같은 pointer들 fm도 다 list에서 빼고 지워야함 
-
-		fm = new_fm;
-		fm->file_exists = false;
-		while (fm->copied_fd>0 && fm->copied_fd != new_fm->fd) {
-			fm = get_fm(fm->copied_fd);
-			fm->file_exists = false;
-		}
-
-		// struct thread* curr = thread_current();
-		// struct list_elem* e = list_begin(&curr->fm_list);
-		// while (e != list_end(&curr->fm_list)){
-		// 	struct fm* fm = list_entry(e, struct fm, elem);
-		// 	e = list_next(e);
-		// 	// if (fm != NULL) close_fm(fm);
-			
-		// }
-		// // for (struct list_elem* e = list_begin(&curr->fm_list); e != list_end(&curr->fm_list);) {
-			
-		// 	struct fm* fm = list_entry(e, struct fm, elem);
-		// 	if (fm == NULL) continue;
-		// 	// if (fm->file_exists == false) {
-		// 		// close_fm(fm);
-		// 		// list_remove(&fm->elem);
-		// 		// palloc_free_page(fm);
-		// 	// }
-		// 	e = list_next(e);
-
-		// }
-	}
+	if (new_fm!=NULL) close_fm(new_fm); // new fd was issued
 	
 	new_fm = palloc_get_page(PAL_USER);
 	if (new_fm==NULL) {
@@ -379,11 +333,17 @@ bool is_not_mapped(uint64_t va) {
 	return not_mapped;
 }
 
-void close_fm(struct fm* fm) {
-	if (fm->file_exists == true){
-		file_close(fm->fp);
+void close_fm(struct fm* main_fm) {
+	if (main_fm->copied_fd > 0) { // new fd has fellow dup2ed fds
+		struct fm* end_fm = get_fm(main_fm->copied_fd);
+		if (end_fm->copied_fd==main_fm->fd) end_fm->copied_fd = -1; // only one fellow fd (the two fds points to each other)
+		else {
+			while (end_fm->copied_fd != main_fm->fd) end_fm = get_fm(end_fm->copied_fd);
+			end_fm->copied_fd = main_fm->copied_fd;
+		}
+	} else { // new fd stands alone (no dup2ed fds)
+		file_close(main_fm->fp);
 	}
-	// fm->file_exists = false;
-	list_remove(&fm->elem);
-	palloc_free_page(fm);
+	list_remove(&main_fm->elem);
+	palloc_free_page(main_fm);
 }
