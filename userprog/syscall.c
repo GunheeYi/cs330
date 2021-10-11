@@ -87,7 +87,6 @@ void haltt() {
 	power_off();
 }
 void exitt(int status) {
-
 	struct thread *curr = thread_current();
 	curr->exit_status = status;
 	printf ("%s: exit(%d)\n", curr->name, curr->exit_status);
@@ -274,8 +273,21 @@ void closee(int fd) {
 	}
 
 	struct fm* main_fm = get_fm(fd);
-	if ( get_fm(fd)==NULL ) exitt(-1); // fd has not been issued (bad)
-	close_fm(main_fm);
+	if ( get_fm(fd)==NULL ) return; // fd has not been issued (bad)
+	// close_fm(main_fm);
+	
+	if (main_fm->file_exists == true){
+		file_close(main_fm->fp);
+	}
+
+	
+	// struct fm* fm;
+	// fm->file_exists = false;
+	list_remove(&main_fm->elem);
+	palloc_free_page(main_fm);
+
+
+// }
 }
 int dup22(int oldfd, int newfd) {
 	struct thread* curr = thread_current();

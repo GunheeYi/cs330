@@ -188,7 +188,7 @@ __do_fork (void *aux) {
 		if (current_fm->fp==NULL) goto error;
 		current_fm->fd = parent_fm->fd;
 		current_fm->copied_fd = parent_fm->copied_fd;
-		current_fm->file_exists = true;
+		current_fm->file_exists = parent_fm->file_exists;
 		list_push_back(&current->fm_list, &current_fm->elem);
 	}
 	current->fd_next = parent->fd_next;
@@ -325,46 +325,37 @@ process_exit (void) {
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
 	struct list* fm_list = &curr->fm_list;
-
-	// printf("CURRENT PID: %d------------------------------\n", curr->tid);
-	// printf("CURRENT FM_LIST: BEGIN");
-	// for (struct list_elem* e = list_begin(fm_list); e!=list_end(fm_list); e = list_next(e)) {
-	// 	printf("-%d,%d", list_entry(e, struct fm, elem)->fd, list_entry(e, struct fm, elem)->fp);
-	// }
-	// printf("-END\n");
-
+	struct fm* main_fm;
+	// ASSERT(0);
 	for (struct list_elem* e = list_begin(fm_list); e != list_end(fm_list); e = list_next(e)) {
 		
-		struct fm* main_fm = list_entry(e, struct fm, elem);
+		// struct fm* main_fm = list_entry(e, struct fm, elem);
+		main_fm = list_entry(e, struct fm, elem);
+		if (main_fm == NULL) break;
 		if (main_fm->file_exists) {
-			file_close(main_fm->fp);
+			// printf("main_fm fd, %d----------\n", main_fm->fd);
+			// file_close(main_fm->fp);
 			main_fm->file_exists = false;
 			struct fm* fm = main_fm;
+
 			while (fm->copied_fd>0 && fm->copied_fd!=main_fm->fd) {
+
 				fm = get_fm(fm->copied_fd);
 				fm->file_exists = false;
 			}
 		}
 	}
-
+	// file_close(main_fm->fp);
 	while (!list_empty(fm_list)) {
 		struct list_elem* e = list_pop_front(fm_list);
 		struct fm* fm = list_entry(e, struct fm, elem);
 		palloc_free_page(fm);
 	}
-	// curr->fd_next = FD_NEXT_DEFAULT;
 
-	// printf("CURRENT FM_LIST: BEGIN");
-	// for (struct list_elem* e = list_begin(fm_list); e!=list_end(fm_list); e = list_next(e)) {
-	// 	printf("-%d", list_entry(e, struct fm, elem)->fd);
-	// }
-	// printf("-END\n");
+	
 
-	// lock_acquire(&lock_file);
 	if (curr->executable!=NULL) file_close(curr->executable);
-	// lock_release(&lock_file);
 
-	// /-----------------------OTHER THINGS???????
 	sema_up(&curr->sema_wait); // allow parent process do things left (recording exit status & remove me from child list)
 	sema_down(&curr->sema_exit); // proceed exitting completely if allowed by parent process
 	
