@@ -73,11 +73,11 @@ syscall_handler (struct intr_frame *f UNUSED) {
 void haltt() {
 	power_off();
 }
+
 void exitt(int status) {
 	struct thread *curr = thread_current();
 	curr->exit_status = status;
 	printf ("%s: exit(%d)\n", curr->name, curr->exit_status);
-
 	thread_exit();
 }
 
@@ -88,9 +88,11 @@ pid_t forkk(const char *thread_name, struct intr_frame* f) {
 int execc(const char *file) {
 	if (is_not_mapped(file) || process_exec(file) < 0) exitt(-1); // is bad ptr or if ~~????
 }
+
 int waitt(pid_t pid) {
 	return process_wait();
 }
+
 bool createe(const char *file, unsigned initial_size) {
 	// if null pointer / virtual address for file is not mapped / file is empty
 	if (file == NULL || is_not_mapped(file) || file[0] == NULL) exitt(-1);
@@ -100,9 +102,11 @@ bool createe(const char *file, unsigned initial_size) {
 	
 	return filesys_create(file, initial_size);
 }
+
 bool removee(const char *file) {
 	return filesys_remove(file);
 }
+
 int openn(const char *file) {
 	
 	if ( file==NULL || is_not_mapped(file) ) exitt(-1); // null pointer for file name / file name virtual address not mapped
@@ -135,9 +139,11 @@ int openn(const char *file) {
 	lock_release(&lock_file);
 	return curr->fd_next++;
 }
+
 int filesizee(int fd) {
 	return file_length(get_fm(fd)->fp);
 }
+
 int readd(int fd, void *buffer, unsigned size) {
 	if ( buffer==NULL || is_not_mapped(buffer) ) exitt(-1); // null pointer for buffer / buffer virtual address not mapped
 	if ( size==0 ) return 0; // requested to read for size of 0
@@ -161,6 +167,7 @@ int readd(int fd, void *buffer, unsigned size) {
 		return size_read;
 	}
 }
+
 int writee(int fd, const void *buffer, unsigned size) {
 	
 	if ( size==0 ) return 0; // requested to write for size of 0
@@ -193,10 +200,12 @@ void seekk(int fd, unsigned position) {
 	if (get_fm(fd) == NULL) return;
 	file_seek(get_fm(fd)->fp, position);
 }
+
 unsigned telll(int fd) {
 	if (get_fm(fd) == NULL) return;
 	return file_tell(get_fm(fd)->fp);
 }
+
 void closee(int fd) {
 	switch (fd) {
 		case 0:
@@ -212,6 +221,7 @@ void closee(int fd) {
 	
 	close_fm(main_fm);
 }
+
 int dup22(int oldfd, int newfd) {
 	struct thread* curr = thread_current();
 	

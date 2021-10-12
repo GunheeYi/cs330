@@ -87,15 +87,10 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	memcpy(&curr->parent_if, if_, sizeof(struct intr_frame));
 	tid_t child_tid = thread_create (name,
 			PRI_DEFAULT, __do_fork, curr);
-	if (child_tid==TID_ERROR) {
-		return TID_ERROR;
-	}
+	if (child_tid==TID_ERROR) return TID_ERROR;
 	struct thread* child = get_child(child_tid);
 	sema_down(&child->sema_fork);
-	if (!child->fork_successful) {
-		// palloc_free_page(child);
-		return TID_ERROR; //-------------------necessary?
-	}
+	if (!child->fork_successful) return TID_ERROR;
 	return child_tid;
 }
 
@@ -157,17 +152,14 @@ __do_fork (void *aux) {
 
 	/* 2. Duplicate PT */
 	current->pml4 = pml4_create();
-	if (current->pml4 == NULL)
-		goto error;
+	if (current->pml4 == NULL) goto error;
 
 	process_activate (current);
 #ifdef VM
 	supplemental_page_table_init (&current->spt);
-	if (!supplemental_page_table_copy (&current->spt, &parent->spt))
-		goto error;
+	if (!supplemental_page_table_copy (&current->spt, &parent->spt)) goto error;
 #else
-	if (!pml4_for_each (parent->pml4, duplicate_pte, parent))
-		goto error;
+	if (!pml4_for_each (parent->pml4, duplicate_pte, parent)) goto error;
 #endif
 
 	/* TODO: Your code goes here.
@@ -181,9 +173,7 @@ __do_fork (void *aux) {
 	{
 		parent_fm = list_entry (e, struct fm, elem);
 		struct fm* current_fm = palloc_get_page(PAL_USER);
-		if (current_fm==NULL) {
-			goto error;
-		}
+		if (current_fm==NULL) goto error;
 		current_fm->fp = file_duplicate(parent_fm->fp);
 		if (current_fm->fp==NULL) goto error;
 		current_fm->fd = parent_fm->fd;
@@ -231,7 +221,6 @@ process_exec (void *f_name) {
 	}
 
 	file_name = argv[0];
-	// free(cmd);
 	
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -247,12 +236,9 @@ process_exec (void *f_name) {
 	/* And then load the binary */
 	success = load (file_name, &_if, argv, argc);
 	/* If load failed, quit. */
-	// palloc_free_page (f_name);
-	if (!success)
-		exitt(-1);
-		// return -1;
-
-	// ASSERT(0);
+	
+	if (!success) exitt(-1);
+	
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -260,38 +246,17 @@ process_exec (void *f_name) {
 
 
 struct thread * get_child(tid_t child_tid){
-
 	struct thread *child_list = &thread_current()->child_list;
 	struct thread *child;
-	
 	for (struct list_elem *e = list_begin (child_list); e != list_end (child_list); e = list_next (e)) {
  	  	child = list_entry (e, struct thread, child_elem);
  		if (child->tid == child_tid){
 			return child;
 		}
  	}
-
 	return NULL;
 }
 
-// void close_fm(struct fm* fm) {
-// 	if (fm->file_exists == true){
-// 		file_close(fm->fp);
-// 	}
-// 	fm->file_exists = false;
-// 	list_remove(&fm->elem);
-// 	palloc_free_page(fm);
-// }
-
-/* Waits for thread TID to die and returns its exit status.  If
- * it was terminated by the kernel (i.e. killed due to an
- * exception), returns -1.  If TID is invalid or if it was not a
- * child of the calling process, or if process_wait() has already
- * been successfully called for the given TID, returns -1
- * immediately, without waiting.
- *
- * This function will be implemented in problem 2-2.  For now, it
- * does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
@@ -299,13 +264,9 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       implementing the process_wait. */
 	// 저 child가 terminate될 때 까지   if child exit, next,       
 	// 내 child_list중에 저 tid_t를 가진 child가 누구인지.
-	
-	// while(1);
 
 	struct thread* child = get_child(child_tid);
-	if ( child==NULL ) {
-		return -1;
-	}
+	if ( child==NULL ) return -1;
 
 	sema_down(&child->sema_wait); // wait for child process to end
 	int exit_status = child->exit_status; // get exit status from child process
@@ -334,9 +295,7 @@ process_exit (void) {
 			file_close(main_fm->fp);
 			main_fm->file_exists = false;
 			struct fm* fm = main_fm;
-
 			while (fm->copied_fd>0 && fm->copied_fd!=main_fm->fd) {
-
 				fm = get_fm(fm->copied_fd);
 				fm->file_exists = false;
 			}
@@ -521,8 +480,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
-	if (t->pml4 == NULL)
-		goto done;
+	if (t->pml4 == NULL) goto done;
 	process_activate (thread_current ());
 
 	/* Open executable file. */
@@ -551,12 +509,12 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	for (i = 0; i < ehdr.e_phnum; i++) {
 		struct Phdr phdr;
 
-		if (file_ofs < 0 || file_ofs > file_length (file))
-			goto done;
+		if (file_ofs < 0 || file_ofs > file_length (file)) goto done;
+		
 		file_seek (file, file_ofs);
 
-		if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
-			goto done;
+		if (file_read (file, &phdr, sizeof phdr) != sizeof phdr) goto done;
+			
 		file_ofs += sizeof phdr;
 		switch (phdr.p_type) {
 			case PT_NULL:
@@ -590,18 +548,15 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
 					}
 					if (!load_segment (file, file_page, (void *) mem_page,
-								read_bytes, zero_bytes, writable))
-						goto done;
+								read_bytes, zero_bytes, writable)) goto done;
 				}
-				else
-					goto done;
+				else goto done;
 				break;
 		}
 	}
 
 	/* Set up stack. */
-	if (!setup_stack (if_))
-		goto done;
+	if (!setup_stack (if_)) goto done;
 
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
