@@ -58,7 +58,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_EXEC: f->R.rax = execc((const char*) a1); break;
 		case SYS_WAIT: f->R.rax = waitt((pid_t) a1); break;
 		case SYS_CREATE: f->R.rax = createe((const char*) a1, (unsigned) a2); break;
-		case SYS_REMOVE: break;
+		case SYS_REMOVE: f->R.rax = removee((const char*) a1); break;
 		case SYS_OPEN: f->R.rax = openn((const char*) a1); break;
 		case SYS_FILESIZE: f->R.rax = filesizee((int) a1); break;
 		case SYS_READ: f->R.rax = (uint32_t) readd((int) a1, (void*) a2, (unsigned) a3); break;
@@ -67,20 +67,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_TELL: f->R.rax = telll((int) a1); break;
 		case SYS_CLOSE: closee((int) a1); break;
 		case SYS_DUP2: f->R.rax = dup22((int) a1, (int) a2); break;
-		// case SYS_MMAP: mmapp(); break;
-		// case SYS_MUNMAP: munmapp(); break;
-		// case SYS_CHDIR: chdirr(); break;
-		// case SYS_MKDIR: mkdirr(); break;
-		// case SYS_READDIR: readdirr(); break;
-		// case SYS_ISDIR: isdirr(); break;
-		// case SYS_INUMBER: inumberr(); break;
-		// case SYS_SYMLINK: symlinkk(); break;
-		// case SYS_MOUNT: mountt(); break;
-		// case SYS_UMOUNT: umountt(); break;
 	}
-
-	// printf ("system call!\n");
-	// thread_exit ();/
 }
 
 void haltt() {
@@ -95,16 +82,11 @@ void exitt(int status) {
 }
 
 pid_t forkk(const char *thread_name, struct intr_frame* f) {
-	pid_t ret =  process_fork(thread_name, f);
-	return ret;
+	return process_fork(thread_name, f);
 }
 
 int execc(const char *file) {
-	if (is_not_mapped(file)) exitt(-1); // is bad ptr
-
-	if (process_exec(file) < 0 ){
-		return -1;
-	}
+	if (is_not_mapped(file) || process_exec(file) < 0) exitt(-1); // is bad ptr or if ~~????
 }
 int waitt(pid_t pid) {
 	return process_wait();
@@ -116,34 +98,18 @@ bool createe(const char *file, unsigned initial_size) {
 	// if file name too long
 	if ( strlen(file) > NAME_MAX ) return false;
 	
-	// lock_acquire(&lock_file);
-	bool succeeded = filesys_create(file, initial_size);
-	// lock_release(&lock_file);
-	return succeeded;
+	return filesys_create(file, initial_size);
 }
 bool removee(const char *file) {
-	// lock_acquire(&lock_file);
-	bool succeeded = filesys_remove(file);
-	// lock_release(&lock_file);
-
-	return succeeded;
-
-	// "removing an open file does not close it"
-	// 주의해야하나???
+	return filesys_remove(file);
 }
 int openn(const char *file) {
-	// null pointer for file name / file name virtual address not mapped
-	if ( file==NULL || is_not_mapped(file) ) {
-		exitt(-1);
-	}
-	// empty file
-	if ( file[0]==NULL ) {
-		return -1;
-	}
+	
+	if ( file==NULL || is_not_mapped(file) ) exitt(-1); // null pointer for file name / file name virtual address not mapped
+	if ( file[0]==NULL ) return -1; // empty file
 
 	lock_acquire(&lock_file);
 	struct file* fp = filesys_open(file);
-	
 	
 	if (fp==NULL) {
 		lock_release(&lock_file);
@@ -153,44 +119,29 @@ int openn(const char *file) {
 	struct thread* curr = thread_current();
 
 	if (list_size(&curr->fm_list) > 135) {
-		// printf("Too many files open already.\n");
 		lock_release(&lock_file);
 		return -1;
 	}
 
-	// use palloc instead of initializing struct fd directly????
 	struct fm* new_file_map = palloc_get_page(PAL_USER);
 	if (new_file_map==NULL) return -1;
-	// will palloc_get_page() ever fail? if so, should we immediately free the page back?????????
+
 	new_file_map->fd = curr->fd_next;
 	new_file_map->fp = fp;
 	new_file_map->copied_fd = -1;
 	new_file_map->file_exists = true;
-
 	list_push_back(&curr->fm_list, &new_file_map->elem);
 
 	lock_release(&lock_file);
 	return curr->fd_next++;
 }
 int filesizee(int fd) {
-	// lock_acquire(&lock_file);
-	int length = file_length(get_fm(fd)->fp);
-	// lock_release(&lock_file);
-	return length;
+	return file_length(get_fm(fd)->fp);
 }
 int readd(int fd, void *buffer, unsigned size) {
-	// null pointer for buffer / buffer virtual address not mapped
-	if ( buffer==NULL || is_not_mapped(buffer) ) {
-		exitt(-1);
-	}
-	// requested to read for size of 0
-	if ( size==0 ) {
-		return 0;
-	}
-	// trying to read from stdout
-	if ( fd==1 ){
-		return -1;
-	} 
+	if ( buffer==NULL || is_not_mapped(buffer) ) exitt(-1); // null pointer for buffer / buffer virtual address not mapped
+	if ( size==0 ) return 0; // requested to read for size of 0
+	if ( fd==1 ) return -1; // trying to read from stdout
 
 	// reading from
 	// stdin
@@ -211,17 +162,10 @@ int readd(int fd, void *buffer, unsigned size) {
 	}
 }
 int writee(int fd, const void *buffer, unsigned size) {
-	// requested to write for size of 0
-	// ASSERT(0);
-	if ( size==0 ) {
-		return 0;
-	}
-	// trying to write to stdin
-	if ( fd==0 ) {
-		return -1;
-	}
-	// virtual address for buffer is not mapped
-	if ( is_not_mapped(buffer) ) exitt(-1);
+	
+	if ( size==0 ) return 0; // requested to write for size of 0
+	if ( fd==0 ) return -1; // trying to write to stdin
+	if ( is_not_mapped(buffer) ) exitt(-1); // virtual address for buffer is not mapped
 	
 	// writing to 
 	// stdout
@@ -246,21 +190,12 @@ int writee(int fd, const void *buffer, unsigned size) {
 }
 
 void seekk(int fd, unsigned position) {
-	// lock_acquire(&lock_file);
-	if (get_fm(fd) == NULL){
-		return;
-	}
+	if (get_fm(fd) == NULL) return;
 	file_seek(get_fm(fd)->fp, position);
-	// lock_release(&lock_file);
 }
 unsigned telll(int fd) {
-	// lock_acquire(&lock_file);
-	if (get_fm(fd) == NULL){
-		return;
-	}
-	unsigned position =  file_tell(get_fm(fd)->fp);
-	// lock_release(&lock_file);
-	return position;
+	if (get_fm(fd) == NULL) return;
+	return file_tell(get_fm(fd)->fp);
 }
 void closee(int fd) {
 	switch (fd) {
@@ -276,16 +211,12 @@ void closee(int fd) {
 	if ( main_fm==NULL ) return; // fd has not been issued (bad)
 	
 	close_fm(main_fm);
-
 }
 int dup22(int oldfd, int newfd) {
 	struct thread* curr = thread_current();
 	
 	struct fm* old_fm = get_fm(oldfd);
-	if (old_fm==NULL) {
-		// printf("OLD FD IS NULL-----------------------\n");
-		return -1; // old fd is not valid
-	}
+	if (old_fm==NULL) return -1; // old fd is not valid
 
 	if (oldfd==newfd) return newfd; // old fd is not valid and is same with new fd
 
@@ -293,32 +224,18 @@ int dup22(int oldfd, int newfd) {
 	if (new_fm!=NULL) close_fm(new_fm); // new fd was issued
 	
 	new_fm = palloc_get_page(PAL_USER);
-	if (new_fm==NULL) {
-		return -1;
-	}
+	if (new_fm==NULL) return -1;
+
 	new_fm->fd = newfd;
 	new_fm->fp = old_fm->fp;
-	if (old_fm->copied_fd>0) {
-		new_fm->copied_fd = old_fm->copied_fd;
-	} else {
-		new_fm->copied_fd = old_fm->fd;
-	}
+	if (old_fm->copied_fd>0) new_fm->copied_fd = old_fm->copied_fd;
+	else new_fm->copied_fd = old_fm->fd;
 	old_fm->copied_fd = new_fm->fd;
 	
 	list_push_back(&curr->fm_list, &new_fm->elem);
 
 	return newfd;
 };
-// void* mmapp();
-// void munmapp();
-// bool chdirr();
-// bool mkdirr();
-// bool readdirr();
-// bool isdirr();
-// int inumberr();
-// int symlinkk();
-// int mountt();
-// int umountt();
 
 struct fm* get_fm(int fd) {
 	struct thread* t = thread_current();
@@ -332,22 +249,11 @@ struct fm* get_fm(int fd) {
 }
 
 bool is_not_mapped(uint64_t va) {
-	// lock_acquire(&lock_file);
 	bool not_mapped = pml4e_walk(thread_current()->pml4, va, false) == NULL;
-	// lock_release(&lock_file);
 	return not_mapped;
 }
 
 void close_fm(struct fm* main_fm) {
-
-	// struct thread* curr = thread_current();
-	// printf("Close fm requested.-----------------------------------------\n");
-	// for (struct list_elem* e = list_begin(&curr->fm_list); e != list_end(&curr->fm_list); e = list_next(e)) {
-	// 	struct fm* fm = list_entry(e, struct fm, elem);
-	// 	printf("Fd %d points to fd %d.\n", fm->fd, fm->copied_fd);
-	// }
-	// printf("-----------------------------------------------------------\n");
-
 
 	if (main_fm->copied_fd > 0) { // new fd has fellow dup2ed fds
 		struct fm* end_fm = get_fm(main_fm->copied_fd);
@@ -356,9 +262,8 @@ void close_fm(struct fm* main_fm) {
 			while (end_fm->copied_fd != main_fm->fd) end_fm = get_fm(end_fm->copied_fd);
 			end_fm->copied_fd = main_fm->copied_fd;
 		}
-	} else { // new fd stands alone (no dup2ed fds)
-		file_close(main_fm->fp);
-	}
+	} else file_close(main_fm->fp); // new fd stands alone (no dup2ed fds)
+
 	list_remove(&main_fm->elem);
 	palloc_free_page(main_fm);
 }
