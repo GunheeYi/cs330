@@ -134,6 +134,7 @@ int openn(const char *file) {
 	new_file_map->fp = fp;
 	new_file_map->copied_fd = -1;
 	new_file_map->file_exists = true;
+	new_file_map->mode = FILESYSTEMM;
 	list_push_back(&curr->fm_list, &new_file_map->elem);
 
 	lock_release(&lock_file);
