@@ -27,7 +27,6 @@ int writee(int fd, const void *buffer, unsigned size);
 void seekk(int fd, unsigned position);
 unsigned telll(int fd);
 void closee(int fd);
-int dup22(int oldfd, int newfd);
 // void* mmapp();
 // void munmapp();
 // bool chdirr();
@@ -43,7 +42,6 @@ struct lock lock_file;
 
 struct fm* get_fm(int fd);
 bool is_not_mapped(uint64_t va);
-
 void close_fm(struct fm* fm);
 
 #endif /* userprog/syscall.h */

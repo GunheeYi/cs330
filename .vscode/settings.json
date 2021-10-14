@@ -1,25 +1,6 @@
 {
     "files.associations": {
-        "vaddr.h": "c",
-        "syscall.h": "c",
-        "stdbool.h": "c",
-        "loader.h": "c",
-        "intrinsic.h": "c",
-        "process.h": "c",
-        "thread.h": "c",
-        "stdint.h": "c",
-        "interrupt.h": "c",
-        "file.h": "c",
-        "list.h": "c",
-        "vm.h": "c",
-        "*.inc": "c",
-        "string_view": "c",
-        "lib.h": "c",
-        "stdio.h": "c",
-        "filesys.h": "c",
-        "directory.h": "c",
-        "main.h": "c",
-        "flags.h": "c"
+        "interrupt.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

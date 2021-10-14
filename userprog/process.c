@@ -84,18 +84,17 @@ tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
 	struct thread* curr = thread_current();
+
 	memcpy(&curr->parent_if, if_, sizeof(struct intr_frame));
-	tid_t child_tid = thread_create (name,
-			PRI_DEFAULT, __do_fork, curr);
-	if (child_tid==TID_ERROR) {
-		return TID_ERROR;
-	}
+
+	tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, curr);
+	if (child_tid==TID_ERROR) return TID_ERROR;
+	
 	struct thread* child = get_child(child_tid);
+	
 	sema_down(&child->sema_fork);
-	if (!child->fork_successful) {
-		// palloc_free_page(child);
-		return TID_ERROR; //-------------------necessary?
-	}
+	if (!child->fork_successful) return TID_ERROR;
+
 	return child_tid;
 }
 
@@ -152,7 +151,7 @@ __do_fork (void *aux) {
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
-	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	memcpy(&if_, parent_if, sizeof (struct intr_frame));
 	if_.R.rax = 0; // return value 0 for child process
 
 	/* 2. Duplicate PT */
@@ -258,30 +257,15 @@ process_exec (void *f_name) {
 	NOT_REACHED ();
 }
 
-
 struct thread * get_child(tid_t child_tid){
-
 	struct thread *child_list = &thread_current()->child_list;
 	struct thread *child;
-	
 	for (struct list_elem *e = list_begin (child_list); e != list_end (child_list); e = list_next (e)) {
- 	  	child = list_entry (e, struct thread, child_elem);
- 		if (child->tid == child_tid){
-			return child;
-		}
+ 	  	child = list_entry(e, struct thread, child_elem);
+ 		if (child->tid == child_tid) return child;
  	}
-
 	return NULL;
 }
-
-// void close_fm(struct fm* fm) {
-// 	if (fm->file_exists == true){
-// 		file_close(fm->fp);
-// 	}
-// 	fm->file_exists = false;
-// 	list_remove(&fm->elem);
-// 	palloc_free_page(fm);
-// }
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
@@ -297,15 +281,8 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	// 저 child가 terminate될 때 까지   if child exit, next,       
-	// 내 child_list중에 저 tid_t를 가진 child가 누구인지.
-	
-	// while(1);
-
 	struct thread* child = get_child(child_tid);
-	if ( child==NULL ) {
-		return -1;
-	}
+	if ( child==NULL ) return -1;
 
 	sema_down(&child->sema_wait); // wait for child process to end
 	int exit_status = child->exit_status; // get exit status from child process
@@ -326,33 +303,25 @@ process_exit (void) {
 
 	struct list* fm_list = &curr->fm_list;
 	struct fm* main_fm;
-	// ASSERT(0);
+
 	for (struct list_elem* e = list_begin(fm_list); e != list_end(fm_list); e = list_next(e)) {
-		
-		// struct fm* main_fm = list_entry(e, struct fm, elem);
 		main_fm = list_entry(e, struct fm, elem);
 		if (main_fm == NULL) break;
 		if (main_fm->file_exists) {
-			// printf("main_fm fd, %d----------\n", main_fm->fd);
-			// file_close(main_fm->fp);
 			main_fm->file_exists = false;
 			struct fm* fm = main_fm;
-
 			while (fm->copied_fd>0 && fm->copied_fd!=main_fm->fd) {
-
 				fm = get_fm(fm->copied_fd);
 				fm->file_exists = false;
 			}
 		}
 	}
-	// file_close(main_fm->fp);
+
 	while (!list_empty(fm_list)) {
 		struct list_elem* e = list_pop_front(fm_list);
 		struct fm* fm = list_entry(e, struct fm, elem);
 		palloc_free_page(fm);
 	}
-
-	
 
 	if (curr->executable!=NULL) file_close(curr->executable);
 
@@ -459,25 +428,18 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes,
 		bool writable);
 
-void
-put_argu(struct intr_frame *_if, char **argv, int argc){
-
+void put_argu(struct intr_frame *_if, char **argv, int argc){
 	int len;
 	char **addr = malloc(sizeof(char *) * argc);
-	// char *addr[argc];
 
 	for (int i=argc-1; i>=0; i--){
 		len = strlen(argv[i])+1;
-		
 		_if->rsp = _if->rsp - len;
-
 		memcpy(_if->rsp, argv[i], len);
-		
 		addr[i] = _if->rsp;
-
 	}
 	
-	// /word align
+	// word align
 	while( _if->rsp % WSIZE != 0){
 		_if->rsp--;
 		*(uint8_t *)_if->rsp = 0;
@@ -485,15 +447,12 @@ put_argu(struct intr_frame *_if, char **argv, int argc){
 
 	///final, empty argu space
 	_if->rsp = _if->rsp - WSIZE;
-	// *(uint64_t *)_if->rsp = 0;
 	memset(_if->rsp, 0, sizeof(char **));
-	// ASSERT(0);
 
 	///put argu addr
 	for (int j=argc-1; j>=0; j--){
 		_if->rsp = _if->rsp - WSIZE;
 		*(uint64_t *)_if->rsp = addr[j];
-		// memcpy(_if->rsp, addr[j], sizeof(char **));
 	}
 
 	_if->rsp = _if->rsp - WSIZE;
@@ -503,10 +462,6 @@ put_argu(struct intr_frame *_if, char **argv, int argc){
 	_if->R.rdi = argc;
 	_if->R.rsi = _if->rsp+8;
 
-	// printf("%p, \n\n", _if->R.rsi);
-	// printf("rsi: %p\n\n", _if->rsp);
-	// printf("%p\n", get_user(_if->rsp));
-	// hex_dump(_if->rsp, _if->rsp, 1000, 1);
 	return;
 }
 
@@ -557,12 +512,10 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	for (i = 0; i < ehdr.e_phnum; i++) {
 		struct Phdr phdr;
 
-		if (file_ofs < 0 || file_ofs > file_length (file))
-			goto done;
+		if (file_ofs < 0 || file_ofs > file_length (file)) goto done;
 		file_seek (file, file_ofs);
 
-		if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
-			goto done;
+		if (file_read (file, &phdr, sizeof phdr) != sizeof phdr) goto done;
 		file_ofs += sizeof phdr;
 		switch (phdr.p_type) {
 			case PT_NULL:
@@ -587,27 +540,22 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 						/* Normal segment.
 						 * Read initial part from disk and zero the rest. */
 						read_bytes = page_offset + phdr.p_filesz;
-						zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
-								- read_bytes);
+						zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE) - read_bytes);
 					} else {
 						/* Entirely zero.
 						 * Don't read anything from disk. */
 						read_bytes = 0;
 						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
 					}
-					if (!load_segment (file, file_page, (void *) mem_page,
-								read_bytes, zero_bytes, writable))
-						goto done;
+					if (!load_segment (file, file_page, (void *) mem_page, read_bytes, zero_bytes, writable)) goto done;
 				}
-				else
-					goto done;
+				else goto done;
 				break;
 		}
 	}
 
 	/* Set up stack. */
-	if (!setup_stack (if_))
-		goto done;
+	if (!setup_stack (if_)) goto done;
 
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
@@ -629,40 +577,33 @@ done:
 static bool
 validate_segment (const struct Phdr *phdr, struct file *file) {
 	/* p_offset and p_vaddr must have the same page offset. */
-	if ((phdr->p_offset & PGMASK) != (phdr->p_vaddr & PGMASK))
-		return false;
+	if ((phdr->p_offset & PGMASK) != (phdr->p_vaddr & PGMASK)) return false;
 
 	/* p_offset must point within FILE. */
-	if (phdr->p_offset > (uint64_t) file_length (file))
-		return false;
+	if (phdr->p_offset > (uint64_t) file_length (file)) return false;
 
 	/* p_memsz must be at least as big as p_filesz. */
-	if (phdr->p_memsz < phdr->p_filesz)
-		return false;
+	if (phdr->p_memsz < phdr->p_filesz) return false;
 
 	/* The segment must not be empty. */
-	if (phdr->p_memsz == 0)
-		return false;
+	if (phdr->p_memsz == 0) return false;
 
 	/* The virtual memory region must both start and end within the
 	   user address space range. */
-	if (!is_user_vaddr ((void *) phdr->p_vaddr))
-		return false;
-	if (!is_user_vaddr ((void *) (phdr->p_vaddr + phdr->p_memsz)))
-		return false;
+	if (!is_user_vaddr ((void *) phdr->p_vaddr)) return false;
+		
+	if (!is_user_vaddr ((void *) (phdr->p_vaddr + phdr->p_memsz))) return false;
 
 	/* The region cannot "wrap around" across the kernel virtual
 	   address space. */
-	if (phdr->p_vaddr + phdr->p_memsz < phdr->p_vaddr)
-		return false;
+	if (phdr->p_vaddr + phdr->p_memsz < phdr->p_vaddr) return false;
 
 	/* Disallow mapping page 0.
 	   Not only is it a bad idea to map page 0, but if we allowed
 	   it then user code that passed a null pointer to system calls
 	   could quite likely panic the kernel by way of null pointer
 	   assertions in memcpy(), etc. */
-	if (phdr->p_vaddr < PGSIZE)
-		return false;
+	if (phdr->p_vaddr < PGSIZE) return false;
 
 	/* It's okay. */
 	return true;
@@ -707,8 +648,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* Get a page of memory. */
 		uint8_t *kpage = palloc_get_page (PAL_USER);
-		if (kpage == NULL)
-			return false;
+		if (kpage == NULL) return false;
+			
 
 		/* Load this page. */
 		if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes) {
