@@ -63,10 +63,16 @@ err:
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
 	/* TODO: Fill this function. */
-
-	return page;
+	struct hash_iterator i;
+	hash_first (&i, spt->hash_table);
+	while (hash_next (&i)) {
+		struct page *p = hash_entry (hash_cur(&i), struct page, hash_elem);
+		if (p->va==va) {
+			return p;
+		}
+	}
+	return NULL;
 }
 
 /* Insert PAGE into spt with validation. */
@@ -75,8 +81,11 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
 	/* TODO: Fill this function. */
-
-	return succ;
+	if (hash_find(spt->hash_table, &page->hash_elem)!=NULL) {
+		return false;
+	}
+	hash_insert(spt->hash_table, &page->hash_elem);
+	return true;
 }
 
 void
@@ -112,6 +121,12 @@ static struct frame *
 vm_get_frame (void) {
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
+	frame = malloc(sizeof(struct frame));
+	frame->kva = palloc_get_page(PAL_USER);
+	if (frame->kva==NULL) {
+		PANIC ("todo");
+	}
+	frame->page = NULL;
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
@@ -153,7 +168,15 @@ bool
 vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
 	/* TODO: Fill this function */
-
+	// page = pml4_get_page(thread_current()->pml4, va);
+	page = spt_find_page(thread_current()->spt, va);
+	if (page==NULL) {
+		ASSERT("PAGE IS NULL");
+	}
+	// pml4_clear_page(thread_current()->pml4, va);
+	// page = malloc(sizeof(struct page));
+	// page->va = va;
+	// WHAT IF VA WAS NOT MAPPED YET?
 	return vm_do_claim_page (page);
 }
 
@@ -167,13 +190,27 @@ vm_do_claim_page (struct page *page) {
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
+	if (!pml4_set_page(thread_current()->pml4, page, frame, true)) {
+		return false;
+	}
 
 	return swap_in (page, frame->kva);
+}
+
+uint64_t hash_bytes_hash(const struct hash_elem *e, void *aux) {
+	struct page* p = hash_entry(e, struct page, hash_elem);
+	return hash_bytes(&p->va, sizeof(p->va));
+}
+
+bool hash_bytes_less(const struct hash_elem *a, const struct hash_elem *b, void *aux) {
+	return hash_bytes_hash(a, NULL) < hash_bytes_hash(b, NULL);
 }
 
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+	spt->hash_table = malloc(sizeof(struct hash));
+	hash_init(spt->hash_table, hash_bytes_hash, hash_bytes_less, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
