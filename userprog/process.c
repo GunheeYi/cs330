@@ -1,3 +1,5 @@
+#define VM // temporary
+
 #include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
@@ -713,11 +715,24 @@ install_page (void *upage, void *kpage, bool writable) {
  * If you want to implement the function for only project 2, implement it on the
  * upper block. */
 
+struct aux {
+	struct file* file;
+	off_t ofs;
+	uint32_t read_bytes;
+	uint32_t zero_bytes;
+};
+
 static bool
 lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+	struct aux* aux_ = (struct aux*) aux;
+	if (file_read_at(aux_->file, page->frame->kva, aux_->read_bytes, aux_->ofs) != aux_->read_bytes) {
+		return false;
+	}
+	memset(page->frame->kva+aux_->read_bytes, 0, aux_->zero_bytes);
+	return true;
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
@@ -749,9 +764,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		void *aux = NULL;
+		struct aux* aux = malloc(sizeof(struct aux));
+		*aux = (struct aux) {
+			.file = file,
+			.ofs = ofs,
+			.read_bytes = read_bytes,
+			.zero_bytes = zero_bytes
+		};
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, aux))
+					writable, lazy_load_segment, (void*) aux))
 			return false;
 
 		/* Advance. */

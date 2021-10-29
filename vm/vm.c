@@ -42,22 +42,34 @@ static struct frame *vm_evict_frame (void);
  * `vm_alloc_page`. */
 bool
 vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
-		vm_initializer *init, void *aux) {
+      vm_initializer *init, void *aux) {
 
-	ASSERT (VM_TYPE(type) != VM_UNINIT)
+   ASSERT (VM_TYPE(type) != VM_UNINIT)
 
-	struct supplemental_page_table *spt = &thread_current ()->spt;
+   struct supplemental_page_table *spt = &thread_current ()->spt;
 
-	/* Check wheter the upage is already occupied or not. */
-	if (spt_find_page (spt, upage) == NULL) {
-		/* TODO: Create the page, fetch the initialier according to the VM type,
-		 * TODO: and then create "uninit" page struct by calling uninit_new. You
-		 * TODO: should modify the field after calling the uninit_new. */
+   /* Check wheter the upage is already occupied or not. */
+   if (spt_find_page (spt, upage) == NULL) {
+      /* TODO: Create the page, fetch the initialier according to the VM type,
+       * TODO: and then create "uninit" page struct by calling uninit_new. You
+       * TODO: should modify the field after calling the uninit_new. */
+      
+      struct page* p = malloc(sizeof(struct page));
+	  ASSERT(p!=NULL);
+      if (VM_TYPE(type) == VM_ANON){
+         uninit_new(p, upage, init, type, aux, anon_initializer);
+      }
+      if (VM_TYPE(type) == VM_FILE){
+         uninit_new(p, upage, init, type, aux, file_backed_initializer);
+      }
+      p->writable = writable;
 
-		/* TODO: Insert the page into the spt. */
-	}
+      /* TODO: Insert the page into the spt. */
+      spt_insert_page(spt, p);
+      return true;
+   }
 err:
-	return false;
+   return false;
 }
 
 /* Find VA from spt and return page. On error, return NULL. */
@@ -169,7 +181,7 @@ vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
 	/* TODO: Fill this function */
 	// page = pml4_get_page(thread_current()->pml4, va);
-	page = spt_find_page(thread_current()->spt, va);
+	page = spt_find_page(&thread_current()->spt, va);
 	if (page==NULL) {
 		ASSERT("PAGE IS NULL");
 	}
@@ -190,7 +202,7 @@ vm_do_claim_page (struct page *page) {
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-	if (!pml4_set_page(thread_current()->pml4, page, frame, true)) {
+	if (!pml4_set_page(thread_current()->pml4, page, frame, page->writable)) {
 		return false;
 	}
 
@@ -217,6 +229,13 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
+	// struct hash_iterator i;
+	// hash_first(&i, src->hash_table);
+	// while (hash_next(&i)) {
+	// 	struct page* page_src = hash_entry (hash_cur(&i), struct page, hash_elem);
+	// 	struct page* page_dst = uninit_new()
+	// 	hash_insert(dst, )
+	// }
 }
 
 /* Free the resource hold by the supplemental page table */
