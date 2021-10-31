@@ -163,8 +163,13 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
+	page = spt_find_page(spt, addr);
+	if (page==NULL) {
+		return false;
+	}
 
-	return vm_do_claim_page (page);
+	return vm_claim_page(addr);
+	// return vm_do_claim_page (page);
 }
 
 /* Free the page.
