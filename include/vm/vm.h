@@ -4,6 +4,14 @@
 #include "threads/palloc.h"
 #include "kernel/hash.h"
 #include "threads/mmu.h"
+#include "filesys/off_t.h"
+
+struct aux {
+	struct file* file;
+	off_t ofs;
+	uint32_t page_read_bytes;
+	uint32_t page_zero_bytes;
+};
 
 enum vm_type {
 	/* page not initialized */

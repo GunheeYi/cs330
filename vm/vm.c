@@ -234,13 +234,35 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
-	// struct hash_iterator i;
-	// hash_first(&i, src->hash_table);
-	// while (hash_next(&i)) {
-	// 	struct page* page_src = hash_entry (hash_cur(&i), struct page, hash_elem);
-	// 	struct page* page_dst = uninit_new()
-	// 	hash_insert(dst, )
-	// }
+	struct hash_iterator i;
+	hash_first(&i, src->hash_table);
+	while (hash_next(&i)) {
+		struct page* page_src = hash_entry (hash_cur(&i), struct page, hash_elem);
+
+		if (page_src->operations->type==VM_UNINIT) {
+			
+			struct aux* aux = malloc(sizeof(struct aux));
+			memcpy(aux, page_src->uninit.aux, sizeof(struct aux));
+			aux->file = file_duplicate(&page_src->file);
+			if (!vm_alloc_page_with_initializer(page_get_type(page_src), page_src->va, page_src->writable, page_src->uninit.init, aux)) {
+				return false;
+			}
+		} else if (page_get_type(page_src)==VM_ANON) {
+			
+			if (!vm_alloc_page(page_get_type(page_src), page_src->va, page_src->writable)) {
+				return false;
+			}
+			
+			if (!vm_claim_page(page_src->va)) {
+				return false;
+			}
+
+			struct page* page_dst = spt_find_page(dst, page_src->va);
+			ASSERT(page_dst!=NULL);
+			memcpy(page_dst->frame->kva, page_src->frame->kva, PGSIZE);
+		}
+		return true;
+	}
 }
 
 /* Free the resource hold by the supplemental page table */
@@ -248,4 +270,9 @@ void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+	struct hash_iterator i;
+	hash_first(&i, spt->hash_table);
+	while (hash_next(&i)) {
+		destroy(hash_entry(hash_cur(&i), struct page, hash_elem));
+	}
 }
