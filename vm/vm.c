@@ -80,7 +80,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	hash_first (&i, spt->hash_table);
 	while (hash_next (&i)) {
 		struct page *p = hash_entry (hash_cur(&i), struct page, hash_elem);
-		if (p->va==va) {
+		if (p->va==pg_round_down(va)) {
 			return p;
 		}
 	}
@@ -96,8 +96,7 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 	if (hash_find(spt->hash_table, &page->hash_elem)!=NULL) {
 		return false;
 	}
-	hash_insert(spt->hash_table, &page->hash_elem);
-	return true;
+	return hash_insert(spt->hash_table, &page->hash_elem)!=NULL;
 }
 
 void
@@ -163,13 +162,14 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
+	if (is_kernel_vaddr(addr) && user) {
+		return false;
+	}
 	page = spt_find_page(spt, addr);
 	if (page==NULL) {
 		return false;
 	}
-
-	return vm_claim_page(addr);
-	// return vm_do_claim_page (page);
+	return vm_do_claim_page (page);
 }
 
 /* Free the page.
@@ -207,7 +207,7 @@ vm_do_claim_page (struct page *page) {
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-	if (!pml4_set_page(thread_current()->pml4, page, frame, page->writable)) {
+	if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable)) {
 		return false;
 	}
 
