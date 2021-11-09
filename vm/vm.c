@@ -80,6 +80,9 @@ struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	/* TODO: Fill this function. */
 	struct hash_iterator i;
+	if (hash_empty(spt->hash_table)){
+		return NULL;
+	}
 	hash_first (&i, spt->hash_table);
 	while (hash_next (&i)) {
 		struct page *p = hash_entry (hash_cur(&i), struct page, hash_elem);
@@ -96,9 +99,13 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
 	/* TODO: Fill this function. */
-	if (hash_find(spt->hash_table, &page->hash_elem)!=NULL) {
-		return false;
-	}
+	// if (hash_empty(spt->hash_table)){
+	// 	ASSERT(0);
+	// 	return false;
+	// }
+	// if (hash_find(spt->hash_table, &page->hash_elem)!=NULL) {
+	// 	return false;
+	// }
 	struct hash_elem *elem = hash_insert(spt->hash_table, &page->hash_elem);
 	if (elem == NULL){
 		// printf("succ insert\n");
@@ -224,7 +231,10 @@ uint64_t hash_bytes_hash(const struct hash_elem *e, void *aux) {
 }
 
 bool hash_bytes_less(const struct hash_elem *a, const struct hash_elem *b, void *aux) {
-	return hash_bytes_hash(a, NULL) < hash_bytes_hash(b, NULL);
+	struct page* a_ = hash_entry(a, struct page, hash_elem);
+	struct page* b_ = hash_entry(b, struct page, hash_elem);
+	return a_->va < b_->va;
+	// return hash_bytes_hash(a, NULL) < hash_bytes_hash(b, NULL);
 }
 
 /* Initialize new supplemental page table */
@@ -270,17 +280,23 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 	return true;
 }
 
+// void spt_destroy (struct hash_elem *e, void *aux) {
+// 	struct page* p = hash_entry(e, struct page, hash_elem);
+// 	free(p);
+// }
+
 /* Free the resource hold by the supplemental page table */
 void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 	struct hash_iterator i;
-	if (hash_empty(&spt->hash_table)){
+	if (hash_empty(spt->hash_table)){
 		return;
 	}
 	hash_first(&i, spt->hash_table);
 	while (hash_next(&i)) {
 		destroy(hash_entry(hash_cur(&i), struct page, hash_elem));
 	}
+	// hash_destroy(spt->hash_table, spt_destroy);
 }

@@ -246,12 +246,15 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 	/* And then load the binary */
+
+#ifdef VM
+	supplemental_page_table_init (&thread_current ()->spt);
+#endif
 	success = load (file_name, &_if, argv, argc);
 	/* If load failed, quit. */
 	// palloc_free_page (f_name);
 	if (!success)
-		exitt(-9); /////////////////////////////// success 실패 중 
-		// return -1;
+		exitt(-1);
 
 	// ASSERT(0);
 	/* Start switched process. */
@@ -549,7 +552,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 						read_bytes = 0;
 						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
 					}
-					if (!load_segment (file, file_page, (void *) mem_page, read_bytes, zero_bytes, writable)) {printf("hi\n"); goto done;}
+					if (!load_segment (file, file_page, (void *) mem_page, read_bytes, zero_bytes, writable)) goto done;
 				}
 				else goto done;
 				break;
