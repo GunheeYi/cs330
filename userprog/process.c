@@ -250,7 +250,7 @@ process_exec (void *f_name) {
 	/* If load failed, quit. */
 	// palloc_free_page (f_name);
 	if (!success)
-		exitt(-1);
+		exitt(-9); /////////////////////////////// success 실패 중 
 		// return -1;
 
 	// ASSERT(0);
@@ -549,7 +549,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 						read_bytes = 0;
 						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
 					}
-					if (!load_segment (file, file_page, (void *) mem_page, read_bytes, zero_bytes, writable)) goto done;
+					if (!load_segment (file, file_page, (void *) mem_page, read_bytes, zero_bytes, writable)) {printf("hi\n"); goto done;}
 				}
 				else goto done;
 				break;
@@ -720,11 +720,23 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+
 	struct aux* aux_ = (struct aux*) aux;
-	if (file_read_at(aux_->file, page->frame->kva, aux_->page_read_bytes, aux_->ofs) != aux_->page_read_bytes) {
+	struct file* file = aux_->file;
+	size_t page_read_bytes = aux_->page_read_bytes;
+	size_t page_zero_bytes = aux_->page_zero_bytes;
+	off_t ofs = aux_->ofs;
+
+	uint8_t* kva = page->frame->kva;
+	if (kva == NULL){
+		free(page);
 		return false;
 	}
-	memset(page->frame->kva+aux_->page_read_bytes, 0, aux_->page_zero_bytes);
+	if (file_read_at(file, kva, page_read_bytes, ofs) != page_read_bytes) {
+		free(page);
+		return false;
+	}
+	memset(kva + page_read_bytes, 0, page_zero_bytes);
 	return true;
 }
 
@@ -758,15 +770,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		struct aux* aux = malloc(sizeof(struct aux));
-		*aux = (struct aux) {
-			.file = file,
-			.ofs = ofs,
-			.page_read_bytes = page_read_bytes,
-			.page_zero_bytes = page_zero_bytes
-		};
-		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, (void*) aux))
+		// *aux = (struct aux) {
+		// 	.file = file_reopen(file), //////////
+		// 	.ofs = ofs,
+		// 	.page_read_bytes = page_read_bytes,
+		// 	.page_zero_bytes = page_zero_bytes
+		// };
+		aux->file = file_reopen(file);
+		aux->page_read_bytes = page_read_bytes;
+		aux->page_zero_bytes = page_zero_bytes;
+		aux->ofs = ofs;
+
+		if (!vm_alloc_page_with_initializer (VM_ANON, upage, writable, lazy_load_segment, aux)){
 			return false;
+		}
 
 		/* Advance. */
 		read_bytes -= page_read_bytes;
@@ -793,7 +810,7 @@ setup_stack (struct intr_frame *if_) {
 		// vm_dealloc_page(); 필요?
 		return false;
 	}
-	if_->rsp = (uintptr_t) USER_STACK; // set rsp (not stack_bottom but USER_STACK, as stack grows down from top)
+	if_->rsp = USER_STACK; // set rsp (not stack_bottom but USER_STACK, as stack grows down from top)
 	thread_current()->stack_bottom = stack_bottom;
 
 	return true;

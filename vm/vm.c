@@ -68,6 +68,9 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
       spt_insert_page(spt, p);
       return true;
    }
+   else{
+	   printf("vm_alloc_page_with_initializer, null\n");
+   }
 err:
    return false;
 }
@@ -96,7 +99,12 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 	if (hash_find(spt->hash_table, &page->hash_elem)!=NULL) {
 		return false;
 	}
-	return hash_insert(spt->hash_table, &page->hash_elem)!=NULL;
+	struct hash_elem *elem = hash_insert(spt->hash_table, &page->hash_elem);
+	if (elem == NULL){
+		// printf("succ insert\n");
+		succ = true;
+	}
+	return succ;
 }
 
 void
@@ -185,14 +193,10 @@ bool
 vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
 	/* TODO: Fill this function */
-	// page = pml4_get_page(thread_current()->pml4, va);
 	page = spt_find_page(&thread_current()->spt, va);
 	if (page==NULL) {
 		ASSERT("PAGE IS NULL");
 	}
-	// pml4_clear_page(thread_current()->pml4, va);
-	// page = malloc(sizeof(struct page));
-	// page->va = va;
 	// WHAT IF VA WAS NOT MAPPED YET?
 	return vm_do_claim_page (page);
 }
@@ -262,7 +266,6 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 			ASSERT(page_dst!=NULL);
 			memcpy(page_dst->frame->kva, page_src->frame->kva, PGSIZE);
 		}
-		
 	}
 	return true;
 }
