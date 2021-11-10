@@ -44,6 +44,8 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
 
 	// TODO: Your implementation goes here.
+	thread_current()->rsp = f->rsp;
+
 	uint64_t a1 = f->R.rdi;
 	uint64_t a2 = f->R.rsi;
 	uint64_t a3 = f->R.rdx;

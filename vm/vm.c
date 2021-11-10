@@ -69,7 +69,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
       return true;
    }
    else{
-	   printf("vm_alloc_page_with_initializer, null\n");
+	//    printf("vm_alloc_page_with_initializer, null\n");
    }
 err:
    return false;
@@ -162,6 +162,12 @@ vm_get_frame (void) {
 /* Growing the stack. */
 static void
 vm_stack_growth (void *addr UNUSED) {
+	// ASSERT(0);
+	void* allocating_page_addr = pg_round_down(addr);
+	// printf("Requested to grow stack until: %d----------------------------------\n", allocating_page_addr);
+	vm_alloc_page(VM_ANON | VM_STACK, allocating_page_addr, true);
+	vm_claim_page(allocating_page_addr);
+	// printf("Finishing stack growth----------------------------------\n");
 }
 
 /* Handle the fault on write_protected page */
@@ -177,9 +183,20 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
+	// printf("fault detected..--------------------------\n");
 	if (is_kernel_vaddr(addr) && user) {
 		return false;
 	}
+	
+	
+	// if (addr < USER_STACK && addr >= USER_STACK - (1<<20) && (uint64_t)f->rsp - 8 < (uint64_t)addr) {
+	uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
+	if ( addr < USER_STACK && addr >= USER_STACK - (1<<20) && (rsp - 32 < (uintptr_t)addr)) {
+		// printf("Is stack fault..current rsp at %d--------------------------\n", rsp);
+		vm_stack_growth(addr);
+		return true;
+	}
+
 	page = spt_find_page(spt, addr);
 	if (page==NULL) {
 		return false;
