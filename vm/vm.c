@@ -150,7 +150,7 @@ vm_get_frame (void) {
 	frame = malloc(sizeof(struct frame));
 	frame->kva = palloc_get_page(PAL_USER);
 	if (frame->kva==NULL) {
-		PANIC ("todo");
+		// exitt(-1);
 	}
 	frame->page = NULL;
 
@@ -197,14 +197,14 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 			vm_stack_growth(addr);
 		}
 	}
-	// else{
-		// ASSERT(0);
-	// }
 
 	page = spt_find_page(spt, addr);
 	if (page==NULL) {
 		exitt(-1);
 	}
+
+	if (write && !page->writable) exitt(-1);
+
 	return vm_do_claim_page (page);
 }
 
@@ -223,7 +223,7 @@ vm_claim_page (void *va UNUSED) {
 	/* TODO: Fill this function */
 	page = spt_find_page(&thread_current()->spt, va);
 	if (page==NULL) {
-		ASSERT("PAGE IS NULL");
+		return false;
 	}
 	// WHAT IF VA WAS NOT MAPPED YET?
 	return vm_do_claim_page (page);

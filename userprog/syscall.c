@@ -145,7 +145,8 @@ int filesizee(int fd) {
 }
 
 int readd(int fd, void *buffer, unsigned size) {
-	if ( buffer==NULL || is_not_mapped(buffer) ) exitt(-1); // null pointer for buffer / buffer virtual address not mapped
+	check_buffer(buffer, size, true);
+	if ( buffer==NULL || is_not_mapped(buffer)) exitt(-1); // null pointer for buffer / buffer virtual address not mapped
 	if ( size==0 ) return 0; // requested to read for size of 0
 	if ( fd==1 ) return -1; // trying to read from stdout
 
@@ -165,6 +166,7 @@ int readd(int fd, void *buffer, unsigned size) {
 }
 
 int writee(int fd, const void *buffer, unsigned size) {
+	check_buffer(buffer, size, false);
 	if ( size==0 ) return 0; // requested to write for size of 0
 	if ( fd==0 ) return -1; // trying to write to stdin
 	if ( is_not_mapped(buffer) ) exitt(-1); // virtual address for buffer is not mapped
@@ -241,4 +243,20 @@ void close_fm(struct fm* fm) {
 	if (fm->file_exists == true) file_close(fm->fp);
 	list_remove(&fm->elem);
 	palloc_free_page(fm);
+}
+
+void check_buffer(const void *buffer, unsigned size, bool write) {
+	for (int i = 0; i < size; i+=PGSIZE)
+	{
+		if(is_kernel_vaddr(buffer+i)) {
+			exitt(-1);
+		}
+		struct page* p = spt_find_page(&thread_current()->spt, buffer+i);
+		if (p==NULL) {
+			return;
+		}
+		if (write && !p->writable) {
+			exitt(-1);
+		}
+	}	
 }

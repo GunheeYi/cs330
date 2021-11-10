@@ -10,6 +10,7 @@
 #include "threads/thread.h"
 #include "threads/mmu.h"
 #include "threads/palloc.h"
+#include "vm/vm.h"
 
 void syscall_init (void);
 
@@ -43,5 +44,6 @@ struct lock lock_file;
 struct fm* get_fm(int fd);
 bool is_not_mapped(uint64_t va);
 void close_fm(struct fm* fm);
+void check_buffer(const void *buffer, unsigned size, bool write);
 
 #endif /* userprog/syscall.h */
