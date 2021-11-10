@@ -197,10 +197,13 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 			vm_stack_growth(addr);
 		}
 	}
+	// else{
+		// ASSERT(0);
+	// }
 
 	page = spt_find_page(spt, addr);
 	if (page==NULL) {
-		return false;
+		exitt(-1);
 	}
 	return vm_do_claim_page (page);
 }
