@@ -162,11 +162,9 @@ vm_get_frame (void) {
 /* Growing the stack. */
 static void
 vm_stack_growth (void *addr UNUSED) {
-	// ASSERT(0);
 	void* allocating_page_addr = pg_round_down(addr);
 	// printf("Requested to grow stack until: %d----------------------------------\n", allocating_page_addr);
 	vm_alloc_page(VM_ANON | VM_STACK, allocating_page_addr, true);
-	vm_claim_page(allocating_page_addr);
 	// printf("Finishing stack growth----------------------------------\n");
 }
 
@@ -191,10 +189,13 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	
 	// if (addr < USER_STACK && addr >= USER_STACK - (1<<20) && (uint64_t)f->rsp - 8 < (uint64_t)addr) {
 	uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
-	if ( addr < USER_STACK && addr >= USER_STACK - (1<<20) && (rsp - 32 < (uintptr_t)addr)) {
-		// printf("Is stack fault..current rsp at %d--------------------------\n", rsp);
-		vm_stack_growth(addr);
-		return true;
+	if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
+		// printf("Is stack fault.......current rsp at %d--------------------------\n", rsp);
+		if ((uintptr_t)addr < rsp-32) {
+			exitt(-1);
+		} else {
+			vm_stack_growth(addr);
+		}
 	}
 
 	page = spt_find_page(spt, addr);
