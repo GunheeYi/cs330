@@ -68,8 +68,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_SEEK: seekk((int) a1, (unsigned) a2); break;
 		case SYS_TELL: f->R.rax = telll((int) a1); break;
 		case SYS_CLOSE: closee((int) a1); break;
-		// case SYS_MMAP: mmapp(); break;
-		// case SYS_MUNMAP: munmapp(); break;
+		case SYS_MMAP: f->R.rax = mmapp((void*) a1, (size_t) a2, (int) a3, (int) a4, (off_t) a5); break;
+		case SYS_MUNMAP: munmapp((void*) a1); break;
 		// case SYS_CHDIR: chdirr(); break;
 		// case SYS_MKDIR: mkdirr(); break;
 		// case SYS_READDIR: readdirr(); break;
@@ -212,8 +212,17 @@ void closee(int fd) {
 	palloc_free_page(main_fm);
 }
 
-// void* mmapp();
-// void munmapp();
+void* mmapp(void *addr, size_t length, int writable, int fd, off_t offset) {
+	// Fail cases of ap to address 0, not aligned, map length of 0, stdin, stdout
+	if (addr==0 || pg_ofs(addr)!=0 || length==0 || fd==0 || fd==1) return MAP_FAILED;
+	struct fm* fm = get_fm(fd);
+	if (fm==NULL || fm->fp==NULL || file_length(fm->fp)==0) return MAP_FAILED;
+	return do_mmap(addr, length, writable, fm->fp, offset);
+};
+void munmapp(void *addr) {
+	do_munmap(addr);
+};
+
 // bool chdirr();
 // bool mkdirr();
 // bool readdirr();

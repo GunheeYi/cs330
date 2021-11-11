@@ -70,6 +70,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
    }
    else{
 	//    printf("vm_alloc_page_with_initializer, null\n");
+	// "goto err;"" or just "return false;" directly?
    }
 err:
    return false;
@@ -116,6 +117,9 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 
 void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
+	ASSERT(pg_ofs(page->va)==0);
+	pml4_clear_page(thread_current()->pml4, page->va);
+	hash_delete(spt->hash_table, &page->hash_elem);
 	vm_dealloc_page (page);
 	return true;
 }

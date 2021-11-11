@@ -4,7 +4,9 @@
         "*.inc": "c",
         "process.h": "c",
         "vm.h": "c",
-        "syscall.h": "c"
+        "syscall.h": "c",
+        "main.h": "c",
+        "thread.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

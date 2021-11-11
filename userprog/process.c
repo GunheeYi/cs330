@@ -779,7 +779,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		// 	.page_read_bytes = page_read_bytes,
 		// 	.page_zero_bytes = page_zero_bytes
 		// };
-		aux->file = file_reopen(file);
+		aux->file = file_reopen(file); // file_reopen necessary?
 		aux->page_read_bytes = page_read_bytes;
 		aux->page_zero_bytes = page_zero_bytes;
 		aux->ofs = ofs;
