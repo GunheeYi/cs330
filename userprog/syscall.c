@@ -217,6 +217,7 @@ void* mmapp(void *addr, size_t length, int writable, int fd, off_t offset) {
 	// Fail cases of ap to address 0, not aligned, map length of 0, stdin, stdout
 	if (addr==0
 		|| is_kernel_vaddr(addr) 
+		|| addr+length <= 0 // ???????????????
 		|| pg_ofs(addr)!=0 
 		|| length==0 
 		|| fd==0 
