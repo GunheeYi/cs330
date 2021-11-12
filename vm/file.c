@@ -27,10 +27,10 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &file_ops;
 
 	struct file_page *file_page = &page->file;
-	// struct aux* aux = (struct aux*) page->uninit.aux;
-	// file_page->fp = aux->file;
-	// file_page->size = aux->page_read_bytes;
-	// file_page->ofs = aux->ofs;
+	struct aux* aux = (struct aux*) page->uninit.aux;
+	file_page->fp = aux->file;
+	file_page->size = aux->page_read_bytes;
+	file_page->ofs = aux->ofs;
 }
 
 /* Swap in the page by read contents from the file. */
@@ -84,7 +84,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
 	ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
 	ASSERT (pg_ofs (upage) == 0);
-	ASSERT (ofs % PGSIZE == 0);
+	if (ofs%PGSIZE!=0) return false;
+	// ASSERT (ofs % PGSIZE == 0);
 
 	while (read_bytes > 0 || zero_bytes > 0) {
 		// 도는 와중에 page가 이미 allocate 되어있으면? 그게 곧 vm_alloc_page~==false 상황인가?
@@ -131,11 +132,14 @@ do_munmap (void *addr) {
 
 		if (
 			p==NULL ||
-			!(p->operations->type==VM_FILE || (p->operations->type==VM_UNINIT && p->uninit.type==VM_FILE))
+			page_get_type(p)!=VM_FILE
 			// || page count?
 		) break;
 
-		if (pml4_is_dirty(t->pml4, addr)) file_write_at(p->file.fp, addr, p->file.size, p->file.ofs); // if file was written while mapped in memory
+		if (pml4_is_dirty(t->pml4, addr)) {
+			// printf("File was dirty---------------------------\n");
+			file_write_at(p->file.fp, addr, p->file.size, p->file.ofs); // if file was written while mapped in memory
+		}
 
 		spt_remove_page(&thread_current()->spt, p);
 

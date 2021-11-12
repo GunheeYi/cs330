@@ -298,6 +298,13 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 			}
 
 			struct page* page_dst = spt_find_page(dst, page_src->va);
+
+			// if (page_get_type(page_src)==VM_FILE) {
+			// 	page_dst->file.fp = file_duplicate(page_src->file.fp);
+			// 	page_dst->file.size = page_src->file.size;
+			// 	page_dst->file.ofs = page_src->file.ofs;
+			// }
+
 			ASSERT(page_dst!=NULL);
 			memcpy(page_dst->frame->kva, page_src->frame->kva, PGSIZE);
 		}
@@ -321,6 +328,19 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	}
 	hash_first(&i, spt->hash_table);
 	while (hash_next(&i)) {
+		// struct page* p = hash_entry(hash_cur(&i), struct page, hash_elem);
+		
+		// if (page_get_type(p)==VM_FILE) {
+		// 	if (pml4_is_dirty(thread_current()->pml4, p->va)) {
+		// 		// ASSERT(0);
+		// 		printf("%d, %d, %d, %d------------------------\n", p->file.fp, p->va, p->file.size, p->file.ofs);
+		// 		printf("hehehehe++++++++++++++=\n");
+		// 		printf("%d------------------------\n", file_write_at(p->file.fp, p->va, p->file.size, p->file.ofs)); // if file was written while mapped in memory
+		// 		printf("hohohoho++++++++++++++=\n");
+		// 	}
+		// }
+		// do_munmap(p->va);
+		
 		destroy(hash_entry(hash_cur(&i), struct page, hash_elem));
 	}
 	// hash_destroy(spt->hash_table, spt_destroy);

@@ -215,7 +215,13 @@ void closee(int fd) {
 
 void* mmapp(void *addr, size_t length, int writable, int fd, off_t offset) {
 	// Fail cases of ap to address 0, not aligned, map length of 0, stdin, stdout
-	if (addr==0 || pg_ofs(addr)!=0 || length==0 || fd==0 || fd==1) return MAP_FAILED;
+	if (addr==0
+		|| is_kernel_vaddr(addr) 
+		|| pg_ofs(addr)!=0 
+		|| length==0 
+		|| fd==0 
+		|| fd==1
+	) return MAP_FAILED;
 	struct fm* fm = get_fm(fd);
 	if (fm==NULL || fm->fp==NULL || file_length(fm->fp)==0) return MAP_FAILED;
 	return do_mmap(addr, length, writable, fm->fp, offset);
