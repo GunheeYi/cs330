@@ -116,6 +116,7 @@ int openn(const char *file) {
 	struct file* fp = filesys_open(file);
 	
 	if (fp==NULL) {
+		// ASSERT(0);
 		lock_release(&lock_file);
 		return -1;
 	}

@@ -27,6 +27,10 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &file_ops;
 
 	struct file_page *file_page = &page->file;
+	// struct aux* aux = (struct aux*) page->uninit.aux;
+	// file_page->fp = aux->file;
+	// file_page->size = aux->page_read_bytes;
+	// file_page->ofs = aux->ofs;
 }
 
 /* Swap in the page by read contents from the file. */
@@ -54,19 +58,24 @@ lazy_load_segment (struct page *page, void *aux) {
 	struct aux* aux_ = (struct aux*) aux;
 	struct file* file = aux_->file;
 	size_t page_read_bytes = aux_->page_read_bytes;
-	size_t page_zero_bytes = aux_->page_zero_bytes;
+	ASSERT(aux_->page_read_bytes!=0);
+	// size_t page_zero_bytes = aux_->page_zero_bytes;
 	off_t ofs = aux_->ofs;
+	// printf("File pointer %d, page_read_bytes %d, page_zero_bytes %d, ofs %d ------------------\n", file, page_read_bytes, page_zero_bytes, ofs);
+	// printf("File size: %d ---------------------------------------------------------------------\n", file_length(file));
 
 	uint8_t* kva = page->frame->kva;
 	if (kva == NULL){
 		free(page);
 		return false;
 	}
-	if (file_read_at(file, kva, page_read_bytes, ofs) != page_read_bytes) {
-		free(page);
-		return false;
-	}
-	memset(kva + page_read_bytes, 0, page_zero_bytes);
+	off_t read_result = file_read_at(file, kva, page_read_bytes, ofs);
+	// printf("Read %d bytes.\n", read_result);
+	// if (read_result != page_read_bytes) {
+	// 	free(page);
+	// 	return false;
+	// }
+	memset(kva + page_read_bytes, 0, (page_read_bytes-read_result)); // page_zero_bytes 있어야돼..?
 	return true;
 }
 
@@ -88,7 +97,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		aux->page_read_bytes = page_read_bytes;
 		aux->page_zero_bytes = page_zero_bytes;
 		aux->ofs = ofs;
-
+		// printf("Allocating page with read bytes %d and zero bytes %d-----------------\n", page_read_bytes, page_zero_bytes);
 		if (!vm_alloc_page_with_initializer (VM_FILE, upage, writable, lazy_load_segment, aux)){ // edited
 			return false;
 		}
@@ -116,20 +125,20 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t offse
 /* Do the munmap */
 void
 do_munmap (void *addr) {
-	// struct thread* t = thread_current();
-	// while(true) {
-	// 	struct page* p = spt_find_page(t->spt, addr);
+	struct thread* t = thread_current();
+	while(true) {
+		struct page* p = spt_find_page(&t->spt, addr);
 
-	// 	if (
-	// 		p==NULL ||
-	// 		!(p->operations->type==VM_FILE || (p->operations->type==VM_UNINIT && p->uninit.type==VM_FILE))
-	// 		// || page count?
-	// 	) break;
+		if (
+			p==NULL ||
+			!(p->operations->type==VM_FILE || (p->operations->type==VM_UNINIT && p->uninit.type==VM_FILE))
+			// || page count?
+		) break;
 
-	// 	if (pml4_is_dirty(t->pml4, addr)) file_write_at(p->file.fp, addr, p->file.size, p->file.ofs); // if file was written while mapped in memory
+		if (pml4_is_dirty(t->pml4, addr)) file_write_at(p->file.fp, addr, p->file.size, p->file.ofs); // if file was written while mapped in memory
 
-	// 	spt_remove_page(thread_current()->spt, p);
+		spt_remove_page(&thread_current()->spt, p);
 
-	// 	addr += PGSIZE;
-	// }
+		addr += PGSIZE;
+	}
 }
