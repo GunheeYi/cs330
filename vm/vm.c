@@ -44,36 +44,36 @@ bool
 vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
       vm_initializer *init, void *aux) {
 
-   ASSERT (VM_TYPE(type) != VM_UNINIT)
+   	ASSERT (VM_TYPE(type) != VM_UNINIT)
 
-   struct supplemental_page_table *spt = &thread_current ()->spt;
+   	struct supplemental_page_table *spt = &thread_current ()->spt;
 
-   /* Check wheter the upage is already occupied or not. */
-   if (spt_find_page (spt, upage) == NULL) {
-      /* TODO: Create the page, fetch the initialier according to the VM type,
-       * TODO: and then create "uninit" page struct by calling uninit_new. You
-       * TODO: should modify the field after calling the uninit_new. */
+   	/* Check wheter the upage is already occupied or not. */
+   	if (spt_find_page (spt, upage) == NULL) {
+		/* TODO: Create the page, fetch the initialier according to the VM type,
+		* TODO: and then create "uninit" page struct by calling uninit_new. You
+		* TODO: should modify the field after calling the uninit_new. */
       
-      struct page* p = malloc(sizeof(struct page));
-	  ASSERT(p!=NULL);
-      if (VM_TYPE(type) == VM_ANON){
-         uninit_new(p, upage, init, type, aux, anon_initializer);
-      }
-      if (VM_TYPE(type) == VM_FILE){
-         uninit_new(p, upage, init, type, aux, file_backed_initializer);
-      }
-      p->writable = writable;
+		struct page* p = malloc(sizeof(struct page));
+		ASSERT(p!=NULL);
+		if (VM_TYPE(type) == VM_ANON){
+			uninit_new(p, upage, init, type, aux, anon_initializer);
+		}
+		if (VM_TYPE(type) == VM_FILE){
+			uninit_new(p, upage, init, type, aux, file_backed_initializer);
+		}
+		p->writable = writable;
 
-      /* TODO: Insert the page into the spt. */
-      spt_insert_page(spt, p);
-      return true;
-   }
-   else{
+		/* TODO: Insert the page into the spt. */
+		spt_insert_page(spt, p);
+		return true;
+   	}
+   	else{
 	//    printf("vm_alloc_page_with_initializer, null\n");
 	// "goto err;"" or just "return false;" directly?
    }
 err:
-   return false;
+   	return false;
 }
 
 /* Find VA from spt and return page. On error, return NULL. */
@@ -139,8 +139,10 @@ static struct frame *
 vm_evict_frame (void) {
 	struct frame *victim UNUSED = vm_get_victim ();
 	/* TODO: swap out the victim and return the evicted frame. */
-
-	return NULL;
+	swap_out(victim->page);
+	return victim;
+	/////////////////////////////////////////
+	// return NULL;
 }
 
 /* palloc() and get frame. If there is no available page, evict the page
@@ -155,6 +157,10 @@ vm_get_frame (void) {
 	frame->kva = palloc_get_page(PAL_USER);
 	if (frame->kva==NULL) {
 		// exitt(-1);
+		// ASSERT(0);
+		/////////
+		frame = vm_evict_frame();
+		// return frame;
 	}
 	frame->page = NULL;
 
@@ -189,8 +195,6 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	if (is_kernel_vaddr(addr) && user) {
 		return false;
 	}
-	
-	
 	// if (addr < USER_STACK && addr >= USER_STACK - (1<<20) && (uint64_t)f->rsp - 8 < (uint64_t)addr) {
 	uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
 	if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
@@ -207,8 +211,9 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		exitt(-1);
 	}
 
-	if (write && !page->writable) exitt(-1);
-
+	if (write && !page->writable) {
+		exitt(-1);
+	}
 	return vm_do_claim_page (page);
 }
 
@@ -237,12 +242,12 @@ vm_claim_page (void *va UNUSED) {
 static bool
 vm_do_claim_page (struct page *page) {
 	struct frame *frame = vm_get_frame ();
-
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
+	//// frame->kva 가 문제다. 
 	if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable)) {
 		return false;
 	}
