@@ -176,7 +176,7 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
-	
+
 	struct fm* parent_fm;
 	for (struct list_elem *e = list_begin(&parent->fm_list); e != list_end (&parent->fm_list); e = list_next(e))
 	{
@@ -330,10 +330,11 @@ process_exit (void) {
 
 	if (curr->executable!=NULL) file_close(curr->executable);
 
+	process_cleanup ();
+
 	sema_up(&curr->sema_wait); // allow parent process do things left (recording exit status & remove me from child list)
 	sema_down(&curr->sema_exit); // proceed exitting completely if allowed by parent process
 	
-	process_cleanup ();
 }
 
 /* Free the current process's resources. */
