@@ -328,25 +328,17 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 	struct hash_iterator i;
-	if (hash_empty(spt->hash_table)){
+	if (spt->hash_table==NULL){
 		return;
 	}
 	hash_first(&i, spt->hash_table);
 	while (hash_next(&i)) {
-		// struct page* p = hash_entry(hash_cur(&i), struct page, hash_elem);
+		struct page* p = hash_entry(hash_cur(&i), struct page, hash_elem);
 		
-		// if (page_get_type(p)==VM_FILE) {
-		// 	if (pml4_is_dirty(thread_current()->pml4, p->va)) {
-		// 		// ASSERT(0);
-		// 		printf("%d, %d, %d, %d------------------------\n", p->file.fp, p->va, p->file.size, p->file.ofs);
-		// 		printf("hehehehe++++++++++++++=\n");
-		// 		printf("%d------------------------\n", file_write_at(p->file.fp, p->va, p->file.size, p->file.ofs)); // if file was written while mapped in memory
-		// 		printf("hohohoho++++++++++++++=\n");
-		// 	}
-		// }
-		// do_munmap(p->va);
-		
+		if (page_get_type(p)==VM_FILE) {
+			write_if_dirty(p);
+		}
 		destroy(hash_entry(hash_cur(&i), struct page, hash_elem));
 	}
-	// hash_destroy(spt->hash_table, spt_destroy);
+	free(spt->hash_table);
 }

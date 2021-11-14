@@ -140,6 +140,13 @@ do_mmap (void *addr, size_t length, int writable, struct file *file, off_t offse
 	return MAP_FAILED;
 }
 
+void write_if_dirty(struct page* p) {
+	if (pml4_is_dirty(thread_current()->pml4, p->va)) {
+		// printf("File was dirty---------------------------\n");
+		file_write_at(p->file.fp, p->va, p->file.size, p->file.ofs); // if file was written while mapped in memory
+	}
+}
+
 /* Do the munmap */
 void
 do_munmap (void *addr) {
@@ -150,13 +157,9 @@ do_munmap (void *addr) {
 		if (
 			p==NULL ||
 			page_get_type(p)!=VM_FILE
-			// || page count?
 		) break;
 
-		if (pml4_is_dirty(t->pml4, addr)) {
-			// printf("File was dirty---------------------------\n");
-			file_write_at(p->file.fp, addr, p->file.size, p->file.ofs); // if file was written while mapped in memory
-		}
+		write_if_dirty(p);
 
 		spt_remove_page(&thread_current()->spt, p);
 
