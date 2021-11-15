@@ -4,12 +4,16 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 
+static struct list frame_table;
+
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
 void
 vm_init (void) {
 	vm_anon_init ();
 	vm_file_init ();
+
+	list_init(&frame_table);
 #ifdef EFILESYS  /* For project 4 */
 	pagecache_init ();
 #endif
@@ -128,8 +132,18 @@ spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 static struct frame *
 vm_get_victim (void) {
 	struct frame *victim = NULL;
-	 /* TODO: The policy for eviction is up to you. */
-
+	/* TODO: The policy for eviction is up to you. */
+	if (list_empty(&frame_table)){
+		ASSERT(0);
+	}
+	struct list_elem* e = list_front(&frame_table);
+	victim = list_entry(e, struct frame, frame_elem);
+	if (victim == NULL){
+		ASSERT(0);
+	}
+	if (victim->page == NULL){
+		ASSERT(0);
+	}
 	return victim;
 }
 
@@ -141,8 +155,6 @@ vm_evict_frame (void) {
 	/* TODO: swap out the victim and return the evicted frame. */
 	swap_out(victim->page);
 	return victim;
-	/////////////////////////////////////////
-	// return NULL;
 }
 
 /* palloc() and get frame. If there is no available page, evict the page
@@ -156,16 +168,15 @@ vm_get_frame (void) {
 	frame = malloc(sizeof(struct frame));
 	frame->kva = palloc_get_page(PAL_USER);
 	if (frame->kva==NULL) {
-		// exitt(-1);
-		// ASSERT(0);
-		/////////
-		frame = vm_evict_frame();
+		// frame = vm_evict_frame();
 		// return frame;
+		return vm_evict_frame();
 	}
 	frame->page = NULL;
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
+	list_push_back(&frame_table, &frame->frame_elem);
 	return frame;
 }
 
@@ -173,9 +184,7 @@ vm_get_frame (void) {
 static void
 vm_stack_growth (void *addr UNUSED) {
 	void* allocating_page_addr = pg_round_down(addr);
-	// printf("Requested to grow stack until: %d----------------------------------\n", allocating_page_addr);
 	vm_alloc_page(VM_ANON | VM_STACK, allocating_page_addr, true);
-	// printf("Finishing stack growth----------------------------------\n");
 }
 
 /* Handle the fault on write_protected page */
@@ -191,7 +200,6 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
-	// printf("fault detected..--------------------------\n");
 	if (is_kernel_vaddr(addr) && user) {
 		return false;
 	}
@@ -247,11 +255,10 @@ vm_do_claim_page (struct page *page) {
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-	//// frame->kva 가 문제다. 
-	if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable)) {
-		return false;
-	}
-
+	// if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable)) {
+		// return false;
+	// }
+	pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable);
 	return swap_in (page, frame->kva);
 }
 
@@ -316,11 +323,6 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 	}
 	return true;
 }
-
-// void spt_destroy (struct hash_elem *e, void *aux) {
-// 	struct page* p = hash_entry(e, struct page, hash_elem);
-// 	free(p);
-// }
 
 /* Free the resource hold by the supplemental page table */
 void

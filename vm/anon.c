@@ -55,14 +55,15 @@ anon_swap_in (struct page *page, void *kva) {
 /* Swap out the page by writing contents to the swap disk. */
 static bool
 anon_swap_out (struct page *page) {
+	ASSERT(0);
 	struct anon_page *anon_page = &page->anon;
 	// 그냥 page로 이것저것
 	// page에 있던애를, swap_disk에 써주고, swap table에 넣어주자?
 	size_t swap_idx = bitmap_scan(swap_table, 0, 1, 0);
+	
 	if (swap_idx == BITMAP_ERROR){
 		ASSERT(0);
 	}
-
 	//sector size 512 fixed
 	for (int i=0; i<8; i++){
 		disk_write(swap_disk, swap_idx*8 + i, page->frame->kva+i*DISK_SECTOR_SIZE);
