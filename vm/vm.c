@@ -142,8 +142,8 @@ vm_evict_frame (void) {
 	if (victim->page == NULL){
 		ASSERT(0);
 	}
-	if (!is_user_vaddr(victim->page->va)){
-		ASSERT(0);
+	while (!is_user_vaddr(victim->page->va)){
+		victim = vm_get_victim();
 	}
 	swap_out(victim->page);
 	return victim;
@@ -204,6 +204,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 			page = spt_find_page(spt, addr);
 		}
 		else{
+			// return true;
 			exitt(-1); // mmap-unmap
 		}
 	}
@@ -212,9 +213,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	}
 
 	ASSERT(page != NULL);
-
 	return vm_do_claim_page (page);
-
 }
 
 /* Free the page.
