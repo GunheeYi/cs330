@@ -5,6 +5,7 @@
 #include "kernel/hash.h"
 #include "threads/mmu.h"
 #include "filesys/off_t.h"
+#include "bitmap.h"
 
 struct aux {
 	struct file* file;

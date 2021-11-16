@@ -1,0 +1,15 @@
+# -*- makefile -*-
+
+SRCDIR = ../..
+
+.PHONY: tests grade_file
+
+tests:
+	@echo $(TESTS) $(EXTRA_GRADES) $(foreach subdir,$(TEST_SUBDIRS),$($(subdir)_GRADES))
+
+grade_file:
+	@echo $(GRADING_FILE)
+
+include ../../Make.config
+include ../Make.vars
+include ../../tests/Make.tests

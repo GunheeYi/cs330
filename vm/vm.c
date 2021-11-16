@@ -13,13 +13,13 @@ vm_init (void) {
 	vm_anon_init ();
 	vm_file_init ();
 
-	list_init(&frame_table);
 #ifdef EFILESYS  /* For project 4 */
 	pagecache_init ();
 #endif
 	register_inspect_intr ();
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. */
+	list_init(&frame_table);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -69,13 +69,11 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		p->writable = writable;
 
 		/* TODO: Insert the page into the spt. */
-		spt_insert_page(spt, p);
+		if (!spt_insert_page(spt, p)){
+			goto err;
+		}
 		return true;
    	}
-   	else{
-	//    printf("vm_alloc_page_with_initializer, null\n");
-	// "goto err;"" or just "return false;" directly?
-   }
 err:
    	return false;
 }
@@ -104,16 +102,8 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
 	/* TODO: Fill this function. */
-	// if (hash_empty(spt->hash_table)){
-	// 	ASSERT(0);
-	// 	return false;
-	// }
-	// if (hash_find(spt->hash_table, &page->hash_elem)!=NULL) {
-	// 	return false;
-	// }
 	struct hash_elem *elem = hash_insert(spt->hash_table, &page->hash_elem);
 	if (elem == NULL){
-		// printf("succ insert\n");
 		succ = true;
 	}
 	return succ;
@@ -133,17 +123,8 @@ static struct frame *
 vm_get_victim (void) {
 	struct frame *victim = NULL;
 	/* TODO: The policy for eviction is up to you. */
-	if (list_empty(&frame_table)){
-		ASSERT(0);
-	}
-	struct list_elem* e = list_front(&frame_table);
+	struct list_elem* e = list_pop_front(&frame_table);
 	victim = list_entry(e, struct frame, frame_elem);
-	if (victim == NULL){
-		ASSERT(0);
-	}
-	if (victim->page == NULL){
-		ASSERT(0);
-	}
 	return victim;
 }
 
@@ -153,7 +134,17 @@ static struct frame *
 vm_evict_frame (void) {
 	struct frame *victim UNUSED = vm_get_victim ();
 	/* TODO: swap out the victim and return the evicted frame. */
+	if (victim == NULL){
+		ASSERT(0);
+	}
+	if (victim->page == NULL){
+		ASSERT(0);
+	}
+	if (!is_user_vaddr(victim->page->va)){
+		ASSERT(0);
+	}
 	swap_out(victim->page);
+	printf("-------vm_evict_frame end, %#x------\n", victim->page->va);
 	return victim;
 }
 
@@ -168,12 +159,14 @@ vm_get_frame (void) {
 	frame = malloc(sizeof(struct frame));
 	frame->kva = palloc_get_page(PAL_USER);
 	if (frame->kva==NULL) {
-		// frame = vm_evict_frame();
-		// return frame;
-		return vm_evict_frame();
+		printf("-------vm_evict_frame start\n");
+		free(frame);
+		frame = vm_evict_frame();
+		frame->page->frame == NULL;
+		pml4_clear_page(thread_current()->pml4, frame->page->va);
+		printf("-------vm_get_frame, %#x\n", frame->page->va);
 	}
 	frame->page = NULL;
-
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
 	list_push_back(&frame_table, &frame->frame_elem);
@@ -201,28 +194,30 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 	if (is_kernel_vaddr(addr) && user) {
+		ASSERT(0);
 		return false;
 	}
-	// if (addr < USER_STACK && addr >= USER_STACK - (1<<20) && (uint64_t)f->rsp - 8 < (uint64_t)addr) {
-	uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
-	if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
-		// printf("Is stack fault.......current rsp at %d--------------------------\n", rsp);
-		if ((uintptr_t)addr < rsp-32) {
-			exitt(-1);
-		} else {
-			vm_stack_growth(addr);
+
+	page = spt_find_page(&thread_current()->spt, addr);
+	if (page == NULL){
+		uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
+		if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
+			// printf("Is stack fault.......current rsp at %d--------------------------\n", rsp);
+			if ((uintptr_t)addr < rsp-32) {
+				ASSERT(0);
+				exitt(-1);
+				return false;
+			} else {
+				vm_stack_growth(addr);
+				return true;
+			}
+		}
+		else{
+			ASSERT(0);
+			return false;
 		}
 	}
-
-	page = spt_find_page(spt, addr);
-	if (page==NULL) {
-		exitt(-1);
-	}
-
-	if (write && !page->writable) {
-		exitt(-1);
-	}
-	return vm_do_claim_page (page);
+	return vm_claim_page(addr);
 }
 
 /* Free the page.
@@ -240,6 +235,7 @@ vm_claim_page (void *va UNUSED) {
 	/* TODO: Fill this function */
 	page = spt_find_page(&thread_current()->spt, va);
 	if (page==NULL) {
+		ASSERT(0);
 		return false;
 	}
 	// WHAT IF VA WAS NOT MAPPED YET?
@@ -255,10 +251,11 @@ vm_do_claim_page (struct page *page) {
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-	// if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable)) {
-		// return false;
-	// }
-	pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable);
+	if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable)) {
+		ASSERT(0);
+		return false;
+	}
+	// pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable);
 	return swap_in (page, frame->kva);
 }
 

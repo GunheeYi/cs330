@@ -1,0 +1,52 @@
+Kernel command line: -q -f put swap-file put large.txt run swap-file
+0 ~ 9fc00 1
+100000 ~ 7e0000 1
+Pintos booting with: 
+	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
+	ext_mem: 0x100000 ~ 0x7e0000 (Usable: 7,040 kB)
+Calibrating timer...  157,081,600 loops/s.
+hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
+hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
+hd1:0: detected 7,931 sector (3 MB) disk, model "QEMU HARDDISK", serial "QM00003"
+hd1:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00004"
+Formatting file system...done.
+Boot complete.
+Putting 'swap-file' into the file system...
+Putting 'large.txt' into the file system...
+Executing 'swap-file':
+(swap-file) begin
+(swap-file) open "large.txt"
+(swap-file) mmap "large.txt"
+-------vm_evict_frame start
+-------anon swap out start
+-------anon swap out end
+-------vm_evict_frame end, 0x4747f000------
+-------vm_get_frame, 0x4747f000
+-------vm_evict_frame start
+-------anon swap out start
+-------anon swap out end
+-------vm_evict_frame end, 0x400000------
+-------vm_get_frame, 0x400000
+-------anon swap in start
+-------anon swap in end
+Page fault at 0x4747ff40: not present error reading page in user context.
+swap-file: dying due to interrupt 0x0e (#PF Page-Fault Exception).
+Interrupt 0x0e (#PF Page-Fault Exception) at rip=402863
+ cr2=000000004747ff40 error=               4
+rax 00000000101cd000 rbx 0000000000000000 rcx 0000000000403c57 rdx 0000000000000065
+rsp 000000004747ff20 rbp 000000004747ff50 rsi 0000000000604e80 rdi 0000000010000000
+rip 0000000000402863 r8 0000000000000000  r9 0000000000000000 r10 0000000000000002
+r11 0000000000000206 r12 0000000000000000 r13 0000000000000000 r14 0000000000000000
+r15 0000000000000000 rflags 00000206
+es: 001b ds: 001b cs: 0023 ss: 001b
+Execution of 'swap-file' complete.
+Timer: 520 ticks
+Thread: 166 idle ticks, 218 kernel ticks, 136 user ticks
+hd0:0: 0 reads, 0 writes
+hd0:1: 7728 reads, 15900 writes
+hd1:0: 7931 reads, 0 writes
+hd1:1: 8 reads, 16 writes
+Console: 2046 characters output
+Keyboard: 0 keys pressed
+Exception: 1 page faults
+Powering off...
