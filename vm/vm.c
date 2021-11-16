@@ -205,52 +205,82 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 	if (is_kernel_vaddr(addr) && user) {
-		ASSERT(0);
+		// ASSERT(0);
 		return false;
 	}
 
-	// page = spt_find_page(&thread_current()->spt, addr);
-	// if (page == NULL){
-	// 	uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
-	// 	if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
-	// 		if ((uintptr_t)addr < rsp-32) {
-	// 			ASSERT(0);
-	// 			exitt(-1);
-	// 			return false;
-	// 		} else {
-	// 			vm_stack_growth(addr);
-	// 			return true;
-	// 		}
-	// 	}
-	// 	else{
-	// 		ASSERT(0);
-	// 		return false;
+	// uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
+	// if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
+	// 	// printf("Is stack fault.......current rsp at %d--------------------------\n", rsp);
+	// 	if ((uintptr_t)addr < rsp-32) {
+	// 		exitt(-1);
+	// 	} else {
+	// 		vm_stack_growth(addr);
 	// 	}
 	// }
-	// return vm_claim_page(addr);
 
-	page = spt_find_page(&thread_current()->spt, addr);
-   if (vm_claim_page(addr) == false){
-   // if (page == NULL){
-      uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
-      if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
-         // printf("Is stack fault.......current rsp at %#X--------------------------\n", rsp);
-         if ((uintptr_t)addr < rsp-32) {
-            ASSERT(0);
-            exitt(-1);
-            return false;
-         } else {
-            vm_stack_growth(addr);
-            return true;
-         }
-      }
-      else{
-         // ASSERT(0);
-         return true;
-      }
-   }
-   return true;
-   // return vm_claim_page(addr);
+	// page = spt_find_page(spt, addr);
+	// if (page==NULL) {
+	// 	exitt(-1);
+	// }
+
+	// if (write && !page->writable) exitt(-1);
+
+	// return vm_do_claim_page (page);
+
+	page = spt_find_page(spt, addr);
+	if (page == NULL){
+		void *rsp = user ? f->rsp : thread_current()->rsp; // a page fault occurs in the kernel
+		const int GROWTH_LIMIT = 32; // heuristic
+		const int STACK_LIMIT = USER_STACK - (1<<20); // 1MB size limit on stack
+
+		// Check stack size max limit and stack growth request heuristically
+		if((uint64_t)addr > STACK_LIMIT && USER_STACK > (uint64_t)addr && (uint64_t)addr > (uint64_t)rsp - GROWTH_LIMIT){
+			vm_stack_growth (addr);
+			page = spt_find_page(spt, addr);
+		}
+		else{
+			exitt(-1); // mmap-unmap
+		}
+	}
+	else if(write && !page->writable){
+		exitt(-1); // mmap-ro
+	}
+
+	ASSERT(page != NULL);
+
+	return vm_do_claim_page (page);
+
+	// // Step 2~4.
+	// bool gotFrame = vm_do_claim_page (page);
+
+	// if (gotFrame)
+	// 	list_push_back(&frame_table, &fpage->frame->elem);
+	// return gotFrame;
+
+
+// 	page = spt_find_page(&thread_current()->spt, addr);
+//    if (vm_claim_page(addr) == false){
+//    // if (page == NULL){
+//       uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
+//       if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
+//          // printf("Is stack fault.......current rsp at %#X--------------------------\n", rsp);
+//          if ((uintptr_t)addr < rsp-32) {
+//             // ASSERT(0);
+//             exitt(-1);
+//             return false;
+//          } else {
+//             vm_stack_growth(addr);
+//             return true;
+//          }
+//       }
+//       else{
+//          // ASSERT(0);
+//          return false;
+//       }
+//    }
+//    return true;
+//    // return vm_claim_page(addr);
 
 
 
@@ -276,7 +306,7 @@ vm_claim_page (void *va UNUSED) {
 	/* TODO: Fill this function */
 	page = spt_find_page(&thread_current()->spt, va);
 	if (page==NULL) {
-		ASSERT(0);
+		// ASSERT(0);
 		return false;
 	}
 	// WHAT IF VA WAS NOT MAPPED YET?
@@ -301,7 +331,7 @@ vm_do_claim_page (struct page *page) {
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable)) {
-		ASSERT(0);
+		// ASSERT(0);
 		return false;
 	}
 	// pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable);
