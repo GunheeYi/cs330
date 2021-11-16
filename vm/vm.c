@@ -134,9 +134,6 @@ vm_get_victim (void) {
  * Return NULL on error.*/
 static struct frame *
 vm_evict_frame (void) {
-	#ifdef DBG
-		msg("Start vm_evict_frame-------------");
-	#endif
 	struct frame *victim UNUSED = vm_get_victim ();
 	/* TODO: swap out the victim and return the evicted frame. */
 	if (victim == NULL){
@@ -149,9 +146,6 @@ vm_evict_frame (void) {
 		ASSERT(0);
 	}
 	swap_out(victim->page);
-	#ifdef DBG
-		msg("End vm_evict_frame-------------");
-	#endif
 	return victim;
 }
 
@@ -161,9 +155,6 @@ vm_evict_frame (void) {
  * space.*/
 static struct frame *
 vm_get_frame (void) {
-	#ifdef DBG
-		msg("Start vm_get_frame-------------");
-	#endif
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
 	frame = malloc(sizeof(struct frame));
@@ -178,9 +169,6 @@ vm_get_frame (void) {
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
 	list_push_back(&frame_table, &frame->frame_elem);
-	#ifdef DBG
-		msg("End vm_get_frame-------------");
-	#endif
 	return frame;
 }
 
@@ -205,37 +193,13 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 	if (is_kernel_vaddr(addr) && user) {
-		// ASSERT(0);
 		return false;
 	}
 
-	// uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
-	// if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
-	// 	// printf("Is stack fault.......current rsp at %d--------------------------\n", rsp);
-	// 	if ((uintptr_t)addr < rsp-32) {
-	// 		exitt(-1);
-	// 	} else {
-	// 		vm_stack_growth(addr);
-	// 	}
-	// }
-
-	// page = spt_find_page(spt, addr);
-	// if (page==NULL) {
-	// 	exitt(-1);
-	// }
-
-	// if (write && !page->writable) exitt(-1);
-
-	// return vm_do_claim_page (page);
-
 	page = spt_find_page(spt, addr);
 	if (page == NULL){
-		void *rsp = user ? f->rsp : thread_current()->rsp; // a page fault occurs in the kernel
-		const int GROWTH_LIMIT = 32; // heuristic
-		const int STACK_LIMIT = USER_STACK - (1<<20); // 1MB size limit on stack
-
-		// Check stack size max limit and stack growth request heuristically
-		if((uint64_t)addr > STACK_LIMIT && USER_STACK > (uint64_t)addr && (uint64_t)addr > (uint64_t)rsp - GROWTH_LIMIT){
+		void *rsp = user ? f->rsp : thread_current()->rsp;
+		if((uint64_t)addr > USER_STACK - (1<<20) && USER_STACK > (uint64_t)addr && (uint64_t)addr > (uint64_t)rsp - 32){
 			vm_stack_growth (addr);
 			page = spt_find_page(spt, addr);
 		}
@@ -251,41 +215,6 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 
 	return vm_do_claim_page (page);
 
-	// // Step 2~4.
-	// bool gotFrame = vm_do_claim_page (page);
-
-	// if (gotFrame)
-	// 	list_push_back(&frame_table, &fpage->frame->elem);
-	// return gotFrame;
-
-
-// 	page = spt_find_page(&thread_current()->spt, addr);
-//    if (vm_claim_page(addr) == false){
-//    // if (page == NULL){
-//       uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
-//       if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
-//          // printf("Is stack fault.......current rsp at %#X--------------------------\n", rsp);
-//          if ((uintptr_t)addr < rsp-32) {
-//             // ASSERT(0);
-//             exitt(-1);
-//             return false;
-//          } else {
-//             vm_stack_growth(addr);
-//             return true;
-//          }
-//       }
-//       else{
-//          // ASSERT(0);
-//          return false;
-//       }
-//    }
-//    return true;
-//    // return vm_claim_page(addr);
-
-
-
-
-
 }
 
 /* Free the page.
@@ -299,49 +228,27 @@ vm_dealloc_page (struct page *page) {
 /* Claim the page that allocate on VA. */
 bool
 vm_claim_page (void *va UNUSED) {
-	#ifdef DBG
-		msg("Start vm_claim_page-------------");
-	#endif
 	struct page *page = NULL;
 	/* TODO: Fill this function */
 	page = spt_find_page(&thread_current()->spt, va);
-	if (page==NULL) {
-		// ASSERT(0);
-		return false;
-	}
-	// WHAT IF VA WAS NOT MAPPED YET?
-	bool b = vm_do_claim_page (page);
-	#ifdef DBG
-		msg("End vm_claim_page-------------");
-	#endif
-	return b;
+	return vm_do_claim_page (page);
 }
 
 /* Claim the PAGE and set up the mmu. */
 static bool
 vm_do_claim_page (struct page *page) {
-	#ifdef DBG
-		msg("Start vm_do_claim_page-------------");
-	#endif
 	struct frame *frame = vm_get_frame ();
-	// ASSERT(page->frame==NULL);
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable)) {
-		// ASSERT(0);
 		return false;
 	}
-	// pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable);
 	bool b = true;
 
-	if(page->anon.swapped_out) b = swap_in (page, frame->kva);
-	#ifdef DBG
-		msg("End vm_do_claim_page-------------");
-	#endif
-	return b;
+	return swap_in (page, frame->kva);
 }
 
 uint64_t hash_bytes_hash(const struct hash_elem *e, void *aux) {
