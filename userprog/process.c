@@ -181,7 +181,8 @@ __do_fork (void *aux) {
 	for (struct list_elem *e = list_begin(&parent->fm_list); e != list_end (&parent->fm_list); e = list_next(e))
 	{
 		parent_fm = list_entry (e, struct fm, elem);
-		struct fm* current_fm = palloc_get_page(PAL_USER);
+		// struct fm* current_fm = palloc_get_page(PAL_USER);//////////////////
+		struct fm* current_fm = (struct fm*)malloc(sizeof(struct fm));
 		if (current_fm==NULL) {
 			goto error;
 		}
@@ -325,7 +326,8 @@ process_exit (void) {
 	while (!list_empty(fm_list)) {
 		struct list_elem* e = list_pop_front(fm_list);
 		struct fm* fm = list_entry(e, struct fm, elem);
-		palloc_free_page(fm);
+		free(fm);
+		// palloc_free_page(fm);///////////////////////////
 	}
 
 	if (curr->executable!=NULL) file_close(curr->executable);
@@ -774,12 +776,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		struct aux* aux = malloc(sizeof(struct aux));
-		// *aux = (struct aux) {
-		// 	.file = file_reopen(file), //////////
-		// 	.ofs = ofs,
-		// 	.page_read_bytes = page_read_bytes,
-		// 	.page_zero_bytes = page_zero_bytes
-		// };
 		aux->file = file_reopen(file); // file_reopen necessary?
 		aux->page_read_bytes = page_read_bytes;
 		aux->page_zero_bytes = page_zero_bytes;

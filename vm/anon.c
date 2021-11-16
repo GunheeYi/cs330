@@ -41,22 +41,33 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 /* Swap in the page by read contents from the swap disk. */
 static bool
 anon_swap_in (struct page *page, void *kva) {
+	// printf("anon swap in\n");
 	struct anon_page *anon_page = &page->anon;
+	if (anon_page->swapped_out == false){
+		ASSERT(0);
+		return true;
+	}
 	size_t swap_idx = anon_page->swap_idx;
 	for (int i=0; i<8; i++){
 		disk_read(swap_disk, swap_idx*8+i, kva+i*DISK_SECTOR_SIZE);
 	}
 	bitmap_set(swap_table, swap_idx, 0);
 	anon_page->swapped_out = false;
+
+	return true;
 }
 
 /* Swap out the page by writing contents to the swap disk. */
 static bool
 anon_swap_out (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
+	if (anon_page->swapped_out == true){
+		ASSERT(0);
+		return true;
+	}
 	size_t swap_idx = bitmap_scan(swap_table, 0, 1, 0);
 	if (swap_idx == BITMAP_ERROR){
-		ASSERT(0);
+		PANIC("bitmap_err");
 	}
 	bitmap_set(swap_table, swap_idx, 1);
 	for (int i=0; i<8; i++){

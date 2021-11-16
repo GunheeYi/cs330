@@ -2,6 +2,7 @@
 
 #include "vm/vm.h"
 #include "lib/user/syscall.h"
+#include "include/userprog/syscall.h"
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
@@ -36,14 +37,20 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 /* Swap in the page by read contents from the file. */
 static bool
 file_backed_swap_in (struct page *page, void *kva) {
+	// printf("file swap in\n");
+	lock_acquire(&lock_file);
 	struct file_page *file_page UNUSED = &page->file;
 	struct thread* curr = thread_current();
-	struct page* swap_page = spt_find_page(curr->pml4, kva);
+	// struct page* swap_page = spt_find_page(curr->pml4, kva);
 
-	if (swap_page == NULL){
-		ASSERT(0);
-	}
+	// struct aux* aux_ = page->uninit.aux;
+
+	// if (swap_page == NULL){
+	// 	ASSERT(0);
+	// }
 	file_read_at(file_page->fp, page->va, file_page->size, file_page->ofs);
+	lock_release(&lock_file);
+	return true;
 }
 
 /* Swap out the page by writeback contents to the file. */
@@ -67,16 +74,14 @@ file_backed_destroy (struct page *page) {
 
 // FROM PROCESS.c --------------------------------------------------------------------
 static bool
-lazy_load_segment (struct page *page, void *aux) {
+lazy_load_segment__ (struct page *page, void *aux) {
 
 	struct aux* aux_ = (struct aux*) aux;
 	struct file* file = aux_->file;
 	size_t page_read_bytes = aux_->page_read_bytes;
 	ASSERT(aux_->page_read_bytes!=0);
-	// size_t page_zero_bytes = aux_->page_zero_bytes;
+	size_t page_zero_bytes = aux_->page_zero_bytes;
 	off_t ofs = aux_->ofs;
-	// printf("File pointer %d, page_read_bytes %d, page_zero_bytes %d, ofs %d ------------------\n", file, page_read_bytes, page_zero_bytes, ofs);
-	// printf("File size: %d ---------------------------------------------------------------------\n", file_length(file));
 
 	uint8_t* kva = page->frame->kva;
 	if (kva == NULL){
@@ -84,19 +89,12 @@ lazy_load_segment (struct page *page, void *aux) {
 		return false;
 	}
 	off_t read_result = file_read_at(file, kva, page_read_bytes, ofs);
-	// printf("Read %d bytes.\n", read_result);
-	// if (read_result != page_read_bytes) {
-	// 	free(page);
-	// 	return false;
-	// }
-	// memset(kva + page_read_bytes, 0, (page_read_bytes-read_result)); // page_zero_bytes 있어야돼..?
-	memset(kva + page_read_bytes, 0, (aux_->page_zero_bytes)); // page_zero_bytes 있어야돼..?
-
+	memset(kva + page_read_bytes, 0, (page_zero_bytes)); // page_zero_bytes 있어야돼..?
 	return true;
 }
 
 static bool
-load_segment (struct file *file, off_t ofs, uint8_t *upage,
+load_segment__ (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
 	ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
 	ASSERT (pg_ofs (upage) == 0);
@@ -115,7 +113,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		aux->page_zero_bytes = page_zero_bytes;
 		aux->ofs = ofs;
 		// printf("Allocating page with read bytes %d and zero bytes %d-----------------\n", page_read_bytes, page_zero_bytes);
-		if (!vm_alloc_page_with_initializer (VM_FILE, upage, writable, lazy_load_segment, aux)){ // edited
+		if (!vm_alloc_page_with_initializer (VM_FILE, upage, writable, lazy_load_segment__, aux)){ // edited
 			return false;
 		}
 
@@ -133,9 +131,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 void *
 do_mmap (void *addr, size_t length, int writable, struct file *file, off_t offset) {
 	uint32_t zero_bytes = pg_ofs(length)==0 ? 0 : PGSIZE-pg_ofs(length);
-	if (load_segment(file, offset, addr, length, zero_bytes, writable)) return addr;
-	// vm_alloc_page_with_initializer(VM_FILE, addr, writable, lazy_load_segment, NULL);
-
+	if (load_segment__(file, offset, addr, length, zero_bytes, writable)) return addr;	
 	return MAP_FAILED;
 }
 

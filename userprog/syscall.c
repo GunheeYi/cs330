@@ -116,7 +116,6 @@ int openn(const char *file) {
 	struct file* fp = filesys_open(file);
 	
 	if (fp==NULL) {
-		// ASSERT(0);
 		lock_release(&lock_file);
 		return -1;
 	}
@@ -128,8 +127,11 @@ int openn(const char *file) {
 		return -1;
 	}
 
-	struct fm* new_file_map = palloc_get_page(PAL_USER);
-	if (new_file_map==NULL) return -1;
+	// struct fm* new_file_map = palloc_get_page(PAL_USER);
+	struct fm* new_file_map = (struct fm*)malloc(sizeof(struct fm));
+	if (new_file_map==NULL) {
+		return -1;
+	}
 	new_file_map->fd = curr->fd_next;
 	new_file_map->fp = fp;
 	new_file_map->copied_fd = -1;
@@ -210,7 +212,8 @@ void closee(int fd) {
 	
 	if (main_fm->file_exists == true) file_close(main_fm->fp);
 	list_remove(&main_fm->elem);
-	palloc_free_page(main_fm);
+	free(main_fm);
+	// palloc_free_page(main_fm);////////////////////////////////
 }
 
 void* mmapp(void *addr, size_t length, int writable, int fd, off_t offset) {
@@ -231,15 +234,6 @@ void munmapp(void *addr) {
 	do_munmap(addr);
 };
 
-// bool chdirr();
-// bool mkdirr();
-// bool readdirr();
-// bool isdirr();
-// int inumberr();
-// int symlinkk();
-// int mountt();
-// int umountt();
-
 struct fm* get_fm(int fd) {
 	struct thread* t = thread_current();
 	struct fm* fm;
@@ -256,11 +250,11 @@ bool is_not_mapped(uint64_t va) {
 	return not_mapped;
 }
 
-void close_fm(struct fm* fm) {
-	if (fm->file_exists == true) file_close(fm->fp);
-	list_remove(&fm->elem);
-	palloc_free_page(fm);
-}
+// void close_fm(struct fm* fm) {
+// 	if (fm->file_exists == true) file_close(fm->fp);
+// 	list_remove(&fm->elem);
+// 	palloc_free_page(fm);
+// }
 
 void check_buffer(const void *buffer, unsigned size, bool write) {
 	for (int i = 0; i < size; i+=PGSIZE)
