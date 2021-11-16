@@ -34,30 +34,32 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* Set up the handler */
 	page->operations = &anon_ops;
 	struct anon_page *anon_page = &page->anon;
+	anon_page->swapped_out = false;
 	return true;
 }
 
 /* Swap in the page by read contents from the swap disk. */
 static bool
 anon_swap_in (struct page *page, void *kva) {
-	printf("-------anon swap in start\n");
+	// printf("-------anon swap in start\n");
 	struct anon_page *anon_page = &page->anon;
 
-	size_t swap_idx = page->swap_idx;
+	size_t swap_idx = anon_page->swap_idx;
 
 	for (int i=0; i<8; i++){
 		disk_read(swap_disk, swap_idx*8+i, kva+i*DISK_SECTOR_SIZE);
 	}
 	
 	bitmap_set(swap_table, swap_idx, 0);
-	printf("-------anon swap in end\n");
+	anon_page->swapped_out = false;
+	// printf("-------anon swap in end\n");
 }
 
 /* Swap out the page by writing contents to the swap disk. */
 static bool
 anon_swap_out (struct page *page) {
-	printf("-------anon swap out start\n");
-	// struct anon_page *anon_page = &page->anon;
+	// printf("-------anon swap out start\n");
+	struct anon_page *anon_page = &page->anon;
 	// 그냥 page로 이것저것
 	// page에 있던애를, swap_disk에 써주고, swap table에 넣어주자?
 	size_t swap_idx = bitmap_scan(swap_table, 0, 1, 0);
@@ -71,8 +73,9 @@ anon_swap_out (struct page *page) {
 	}
 
 	// bitmap_set(swap_table, swap_idx, 1);
-	page->swap_idx = swap_idx;
-	printf("-------anon swap out end\n");
+	anon_page->swap_idx = swap_idx;
+	anon_page->swapped_out = true;
+	// printf("-------anon swap out end\n");
 	return true;
 }
 

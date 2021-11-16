@@ -4,6 +4,8 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 
+// #define DBG;
+
 static struct list frame_table;
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
@@ -132,6 +134,9 @@ vm_get_victim (void) {
  * Return NULL on error.*/
 static struct frame *
 vm_evict_frame (void) {
+	#ifdef DBG
+		msg("Start vm_evict_frame-------------");
+	#endif
 	struct frame *victim UNUSED = vm_get_victim ();
 	/* TODO: swap out the victim and return the evicted frame. */
 	if (victim == NULL){
@@ -144,7 +149,9 @@ vm_evict_frame (void) {
 		ASSERT(0);
 	}
 	swap_out(victim->page);
-	printf("-------vm_evict_frame end, %#x------\n", victim->page->va);
+	#ifdef DBG
+		msg("End vm_evict_frame-------------");
+	#endif
 	return victim;
 }
 
@@ -154,22 +161,26 @@ vm_evict_frame (void) {
  * space.*/
 static struct frame *
 vm_get_frame (void) {
+	#ifdef DBG
+		msg("Start vm_get_frame-------------");
+	#endif
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
 	frame = malloc(sizeof(struct frame));
 	frame->kva = palloc_get_page(PAL_USER);
 	if (frame->kva==NULL) {
-		printf("-------vm_evict_frame start\n");
 		free(frame);
 		frame = vm_evict_frame();
 		frame->page->frame == NULL;
 		pml4_clear_page(thread_current()->pml4, frame->page->va);
-		printf("-------vm_get_frame, %#x\n", frame->page->va);
 	}
 	frame->page = NULL;
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
 	list_push_back(&frame_table, &frame->frame_elem);
+	#ifdef DBG
+		msg("End vm_get_frame-------------");
+	#endif
 	return frame;
 }
 
@@ -198,26 +209,53 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		return false;
 	}
 
+	// page = spt_find_page(&thread_current()->spt, addr);
+	// if (page == NULL){
+	// 	uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
+	// 	if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
+	// 		if ((uintptr_t)addr < rsp-32) {
+	// 			ASSERT(0);
+	// 			exitt(-1);
+	// 			return false;
+	// 		} else {
+	// 			vm_stack_growth(addr);
+	// 			return true;
+	// 		}
+	// 	}
+	// 	else{
+	// 		ASSERT(0);
+	// 		return false;
+	// 	}
+	// }
+	// return vm_claim_page(addr);
+
 	page = spt_find_page(&thread_current()->spt, addr);
-	if (page == NULL){
-		uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
-		if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
-			// printf("Is stack fault.......current rsp at %d--------------------------\n", rsp);
-			if ((uintptr_t)addr < rsp-32) {
-				ASSERT(0);
-				exitt(-1);
-				return false;
-			} else {
-				vm_stack_growth(addr);
-				return true;
-			}
-		}
-		else{
-			ASSERT(0);
-			return false;
-		}
-	}
-	return vm_claim_page(addr);
+   if (vm_claim_page(addr) == false){
+   // if (page == NULL){
+      uintptr_t rsp = user ? f->rsp : (uintptr_t) thread_current()->rsp;
+      if ( addr < USER_STACK && addr >= USER_STACK - (1<<20)) {
+         // printf("Is stack fault.......current rsp at %#X--------------------------\n", rsp);
+         if ((uintptr_t)addr < rsp-32) {
+            ASSERT(0);
+            exitt(-1);
+            return false;
+         } else {
+            vm_stack_growth(addr);
+            return true;
+         }
+      }
+      else{
+         // ASSERT(0);
+         return true;
+      }
+   }
+   return true;
+   // return vm_claim_page(addr);
+
+
+
+
+
 }
 
 /* Free the page.
@@ -231,6 +269,9 @@ vm_dealloc_page (struct page *page) {
 /* Claim the page that allocate on VA. */
 bool
 vm_claim_page (void *va UNUSED) {
+	#ifdef DBG
+		msg("Start vm_claim_page-------------");
+	#endif
 	struct page *page = NULL;
 	/* TODO: Fill this function */
 	page = spt_find_page(&thread_current()->spt, va);
@@ -239,13 +280,21 @@ vm_claim_page (void *va UNUSED) {
 		return false;
 	}
 	// WHAT IF VA WAS NOT MAPPED YET?
-	return vm_do_claim_page (page);
+	bool b = vm_do_claim_page (page);
+	#ifdef DBG
+		msg("End vm_claim_page-------------");
+	#endif
+	return b;
 }
 
 /* Claim the PAGE and set up the mmu. */
 static bool
 vm_do_claim_page (struct page *page) {
+	#ifdef DBG
+		msg("Start vm_do_claim_page-------------");
+	#endif
 	struct frame *frame = vm_get_frame ();
+	// ASSERT(page->frame==NULL);
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
@@ -256,7 +305,13 @@ vm_do_claim_page (struct page *page) {
 		return false;
 	}
 	// pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable);
-	return swap_in (page, frame->kva);
+	bool b = true;
+
+	if(page->anon.swapped_out) b = swap_in (page, frame->kva);
+	#ifdef DBG
+		msg("End vm_do_claim_page-------------");
+	#endif
+	return b;
 }
 
 uint64_t hash_bytes_hash(const struct hash_elem *e, void *aux) {

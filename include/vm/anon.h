@@ -7,6 +7,8 @@ struct page;
 enum vm_type;
 
 struct anon_page {
+    size_t swap_idx;
+    bool swapped_out;
 };
 
 void vm_anon_init (void);
