@@ -288,25 +288,34 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 			}
 		} 
 		else{
-			
-			if (!vm_alloc_page(page_get_type(page_src), page_src->va, page_src->writable)) {
-				return false;
+			if(page_get_type(page_src)==VM_ANON){
+
+				if (!vm_alloc_page(page_get_type(page_src), page_src->va, page_src->writable)) {
+					return false;
+				}
+				if (!vm_claim_page(page_src->va)) {
+					return false;
+				}
+				struct page* page_dst = spt_find_page(dst, page_src->va);
+				memcpy(page_dst->frame->kva, page_src->frame->kva, PGSIZE);
+
+			} else if(page_get_type(page_src)==VM_FILE){
+				struct aux* aux = malloc(sizeof(struct aux));
+
+				struct file_page *file_page = &page_src->file;
+				aux->file = file_reopen(file_page->fp);
+				aux->page_read_bytes = file_page->size;
+				aux->page_zero_bytes = NULL;
+				aux->ofs = file_page->ofs;
+				vm_alloc_page_with_initializer(VM_FILE, page_src->va, page_src->writable, lazy_load_segment__, aux);
+
+				struct page *page_dst = spt_find_page(dst, page_src->va);
+				vm_do_claim_page(page_dst);
+				
+				page_dst->writable = false;
+			} else {
+				ASSERT(0); // should not reach
 			}
-			
-			if (!vm_claim_page(page_src->va)) {
-				return false;
-			}
-
-			struct page* page_dst = spt_find_page(dst, page_src->va);
-
-			// if (page_get_type(page_src)==VM_FILE) {
-			// 	page_dst->file.fp = file_duplicate(page_src->file.fp);
-			// 	page_dst->file.size = page_src->file.size;
-			// 	page_dst->file.ofs = page_src->file.ofs;
-			// }
-
-			ASSERT(page_dst!=NULL);
-			memcpy(page_dst->frame->kva, page_src->frame->kva, PGSIZE);
 		}
 	}
 	return true;

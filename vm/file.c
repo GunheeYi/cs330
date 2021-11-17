@@ -26,12 +26,13 @@ bool
 file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* Set up the handler */
 	page->operations = &file_ops;
-
 	struct file_page *file_page = &page->file;
 	struct aux* aux = (struct aux*) page->uninit.aux;
+	// memset(&page->uninit, 0, sizeof(struct uninit_page)); // ???
 	file_page->fp = aux->file;
 	file_page->size = aux->page_read_bytes;
 	file_page->ofs = aux->ofs;
+	return true;
 }
 
 /* Swap in the page by read contents from the file. */
@@ -41,13 +42,6 @@ file_backed_swap_in (struct page *page, void *kva) {
 	lock_acquire(&lock_file);
 	struct file_page *file_page UNUSED = &page->file;
 	struct thread* curr = thread_current();
-	// struct page* swap_page = spt_find_page(curr->pml4, kva);
-
-	// struct aux* aux_ = page->uninit.aux;
-
-	// if (swap_page == NULL){
-	// 	ASSERT(0);
-	// }
 	file_read_at(file_page->fp, page->va, file_page->size, file_page->ofs);
 	lock_release(&lock_file);
 	return true;
@@ -59,7 +53,6 @@ file_backed_swap_out (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
 	struct thread* curr = thread_current();
 	if (pml4_is_dirty(curr->pml4, page->va)){
-		ASSERT(0);
 		file_write_at(file_page->fp, page->frame->kva, file_page->size, file_page->ofs);
 	}
 	pml4_set_dirty(curr->pml4, page->frame->kva, 0);
@@ -73,9 +66,7 @@ file_backed_destroy (struct page *page) {
 }
 
 // FROM PROCESS.c --------------------------------------------------------------------
-static bool
-lazy_load_segment__ (struct page *page, void *aux) {
-
+bool lazy_load_segment__ (struct page *page, void *aux) {
 	struct aux* aux_ = (struct aux*) aux;
 	struct file* file = aux_->file;
 	size_t page_read_bytes = aux_->page_read_bytes;

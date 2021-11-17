@@ -8,7 +8,15 @@
         "main.h": "c",
         "thread.h": "c",
         "lib.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "intrinsic.h": "c",
+        "array": "c",
+        "functional": "c",
+        "istream": "c",
+        "ostream": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }
