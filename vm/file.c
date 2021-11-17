@@ -39,11 +39,11 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 file_backed_swap_in (struct page *page, void *kva) {
 	// printf("file swap in\n");
-	lock_acquire(&lock_file);
+	// lock_acquire(&lock_file);
 	struct file_page *file_page UNUSED = &page->file;
 	struct thread* curr = thread_current();
 	file_read_at(file_page->fp, page->va, file_page->size, file_page->ofs);
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 	return true;
 }
 

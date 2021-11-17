@@ -114,23 +114,24 @@ int openn(const char *file) {
 
 	lock_acquire(&lock_file);
 	struct file* fp = filesys_open(file);
+	lock_release(&lock_file);
 	
 	if (fp==NULL) {
-		lock_release(&lock_file);
+		// lock_release(&lock_file);
 		return -1;
 	}
 
 	struct thread* curr = thread_current();
 
 	if (list_size(&curr->fm_list) > 135) {
-		lock_release(&lock_file);
+		// lock_release(&lock_file);
 		return -1;
 	}
 
 	// struct fm* new_file_map = palloc_get_page(PAL_USER);
 	struct fm* new_file_map = (struct fm*)malloc(sizeof(struct fm));
 	if (new_file_map==NULL) {
-		lock_release(&lock_file);
+		// lock_release(&lock_file);
 		return -1;
 	}
 	new_file_map->fd = curr->fd_next;
@@ -139,7 +140,7 @@ int openn(const char *file) {
 	new_file_map->file_exists = true;
 	list_push_back(&curr->fm_list, &new_file_map->elem);
 
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 	return curr->fd_next++;
 }
 
