@@ -130,6 +130,7 @@ int openn(const char *file) {
 	// struct fm* new_file_map = palloc_get_page(PAL_USER);
 	struct fm* new_file_map = (struct fm*)malloc(sizeof(struct fm));
 	if (new_file_map==NULL) {
+		lock_release(&lock_file);
 		return -1;
 	}
 	new_file_map->fd = curr->fd_next;

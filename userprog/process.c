@@ -486,7 +486,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	bool success = false;
 	int i;
 
-	lock_acquire(&lock_file);
+	// lock_acquire(&lock_file);
 
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
@@ -575,7 +575,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 
 done:
 	/* We arrive here whether the load is successful or not. */
-	lock_release(&lock_file);
+	// lock_release(&lock_file);
 	return success;
 }
 
