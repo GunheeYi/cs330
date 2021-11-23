@@ -1,3 +1,5 @@
+#define EFILESYS
+
 #include "filesys/inode.h"
 #include <list.h>
 #include <debug.h>
@@ -6,6 +8,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+#include "filesys/fat.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -75,6 +78,41 @@ inode_create (disk_sector_t sector, off_t length) {
 	 * one sector in size, and you should fix that. */
 	ASSERT (sizeof *disk_inode == DISK_SECTOR_SIZE);
 
+#ifdef EFILESYS
+	disk_inode = calloc (1, sizeof *disk_inode);
+	if (disk_inode != NULL) {
+		size_t sectors = bytes_to_sectors (length);
+		disk_inode->length = length;
+		disk_inode->magic = INODE_MAGIC;
+		// if (free_map_allocate (sectors, &disk_inode->start)) {
+		if (fat_find_empty_num() > sectors){
+			
+			disk_write (filesys_disk, sector, disk_inode);
+			if (sectors > 0) {			
+				static char zeros[DISK_SECTOR_SIZE];
+				size_t i;
+				cluster_t tmp =  fat_create_chain(0);
+				
+				disk_inode->start = cluster_to_sector(tmp);
+				printf("7777777777%d777777%d77777777\n", tmp, disk_inode->start);
+				// ASSERT(0);
+				
+				for (i = 0; i < sectors; i++){
+					disk_write (filesys_disk, cluster_to_sector(tmp), zeros); 
+					// ASSERT(0);
+					tmp = fat_create_chain(tmp); //////////
+					
+				}
+				
+			}
+			success = true; 
+		} 
+		free (disk_inode);
+		
+	}
+	return success;
+
+#else
 	disk_inode = calloc (1, sizeof *disk_inode);
 	if (disk_inode != NULL) {
 		size_t sectors = bytes_to_sectors (length);
@@ -94,6 +132,7 @@ inode_create (disk_sector_t sector, off_t length) {
 		free (disk_inode);
 	}
 	return success;
+#endif
 }
 
 /* Reads an inode from SECTOR
@@ -159,9 +198,14 @@ inode_close (struct inode *inode) {
 
 		/* Deallocate blocks if removed. */
 		if (inode->removed) {
+#ifdef EFILESYS			
+			fat_remove_chain(sector_to_cluster(inode->sector), 0);
+			fat_remove_chain(sector_to_cluster(inode->data.start), 0);
+#else
 			free_map_release (inode->sector, 1);
 			free_map_release (inode->data.start,
 					bytes_to_sectors (inode->data.length)); 
+#endif
 		}
 
 		free (inode); 
@@ -185,9 +229,26 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) {
 	off_t bytes_read = 0;
 	uint8_t *bounce = NULL;
 
+#ifdef EFILESYS
+	cluster_t tmp = sector_to_cluster(inode->data.start);
+#endif
+
 	while (size > 0) {
 		/* Disk sector to read, starting byte offset within sector. */
+		
+
+#ifdef EFILESYS
+		printf("\neeeeeeeeee\n");
+		disk_sector_t sector_idx = cluster_to_sector(tmp);
+		printf("Data start sector: %d, Cluster: %d, sector: %d\n", inode->data.start, tmp, sector_idx);
+		printf("\ndffffffffffffffffff\n");
+		tmp = fat_get(tmp);
+		
+#else
+		printf("\nddddddddddddddd\n");
 		disk_sector_t sector_idx = byte_to_sector (inode, offset);
+#endif
+
 		int sector_ofs = offset % DISK_SECTOR_SIZE;
 
 		/* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -240,9 +301,19 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 	if (inode->deny_write_cnt)
 		return 0;
 
+#ifdef EFILESYS
+	cluster_t tmp = sector_to_cluster(inode->data.start);
+#endif
+
 	while (size > 0) {
 		/* Sector to write, starting byte offset within sector. */
+#ifdef EFILESYS
+		disk_sector_t sector_idx = cluster_to_sector(tmp);
+		tmp = fat_get(tmp);
+#else
 		disk_sector_t sector_idx = byte_to_sector (inode, offset);
+#endif
+
 		int sector_ofs = offset % DISK_SECTOR_SIZE;
 
 		/* Bytes left in inode, bytes left in sector, lesser of the two. */

@@ -153,11 +153,38 @@ fat_boot_create (void) {
 void
 fat_fs_init (void) {
 	/* TODO: Your code goes here. */
+	fat_fs->fat_length = fat_fs->bs.fat_sectors * DISK_SECTOR_SIZE / sizeof(cluster_t);
+	fat_fs->data_start = fat_fs->bs.fat_start + fat_fs->bs.fat_sectors; // in sectors
 }
 
 /*----------------------------------------------------------------------------*/
 /* FAT handling                                                               */
 /*----------------------------------------------------------------------------*/
+
+cluster_t fat_find_empty() {
+	cluster_t i = 1;
+	while(i < fat_fs->fat_length) {
+		if (fat_get(i)==0) {
+			printf("=======%d / %d=======\n", i, fat_fs->fat_length);
+			return i;
+		}
+		i++;
+	}
+	
+	return 0;
+}
+
+size_t fat_find_empty_num() {
+	cluster_t i = 1;
+	size_t num = 0;
+	while(i < fat_fs->fat_length) {
+		if (fat_get(i)==0) {
+			num++;
+		}
+		i++;
+	}
+	return num;
+}
 
 /* Add a cluster to the chain.
  * If CLST is 0, start a new chain.
@@ -165,6 +192,19 @@ fat_fs_init (void) {
 cluster_t
 fat_create_chain (cluster_t clst) {
 	/* TODO: Your code goes here. */
+	cluster_t new = fat_find_empty();
+	if (new==0) {
+		PANIC("No empty space in filesys.");
+	}
+
+	fat_put(new, EOChain);
+
+	if (clst!=0) {
+		ASSERT(fat_get(clst)==EOChain);
+		fat_put(clst, new);
+	}
+
+	return new;
 }
 
 /* Remove the chain of clusters starting from CLST.
@@ -172,22 +212,43 @@ fat_create_chain (cluster_t clst) {
 void
 fat_remove_chain (cluster_t clst, cluster_t pclst) {
 	/* TODO: Your code goes here. */
+	if (pclst!=0) {
+		fat_put(pclst, EOChain);
+	}
+
+	while (true) {
+		cluster_t next = fat_get(clst);
+		fat_put(clst, 0);
+		if(next==EOChain) {
+			return;
+		}
+		clst = next;
+	}
 }
 
 /* Update a value in the FAT table. */
 void
 fat_put (cluster_t clst, cluster_t val) {
 	/* TODO: Your code goes here. */
+	fat_fs->fat[clst] = val;
 }
 
 /* Fetch a value in the FAT table. */
 cluster_t
 fat_get (cluster_t clst) {
 	/* TODO: Your code goes here. */
+	return fat_fs->fat[clst];
 }
 
 /* Covert a cluster # to a sector number. */
 disk_sector_t
 cluster_to_sector (cluster_t clst) {
 	/* TODO: Your code goes here. */
+	return fat_fs->data_start + clst * SECTORS_PER_CLUSTER;
+}
+
+
+cluster_t
+sector_to_cluster (disk_sector_t sect) {
+	return (sect - fat_fs->data_start) / SECTORS_PER_CLUSTER;
 }
