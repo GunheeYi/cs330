@@ -165,7 +165,6 @@ cluster_t fat_find_empty() {
 	cluster_t i = 1;
 	while(i < fat_fs->fat_length) {
 		if (fat_get(i)==0) {
-			printf("=======%d / %d=======\n", i, fat_fs->fat_length);
 			return i;
 		}
 		i++;
@@ -246,7 +245,6 @@ cluster_to_sector (cluster_t clst) {
 	/* TODO: Your code goes here. */
 	return fat_fs->data_start + clst * SECTORS_PER_CLUSTER;
 }
-
 
 cluster_t
 sector_to_cluster (disk_sector_t sect) {
