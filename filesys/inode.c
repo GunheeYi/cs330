@@ -82,7 +82,9 @@ inode_create (disk_sector_t sector, off_t length) {
 	disk_inode = calloc (1, sizeof *disk_inode);
 	if (disk_inode != NULL) {
 		size_t sectors = bytes_to_sectors (length);
+		sectors = sectors==0 ? 1 : sectors;
 		disk_inode->length = length;
+		printf("Sectors: %d, length: %d\n", sectors, length);
 		disk_inode->magic = INODE_MAGIC;
 		if (fat_find_empty_num() > sectors){
 			if (sectors > 0) {			
@@ -294,16 +296,32 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
 #ifdef EFILESYS
 	cluster_t tmp = sector_to_cluster(inode->data.start);
+	// printf("Starting cluster: %d.\n", tmp);
 	for (int i=0; i < offset/DISK_SECTOR_SIZE; i++){
-		tmp = fat_get(tmp);
+		cluster_t old = tmp;
+		tmp = fat_get(old);
+		if (tmp==EOChain) {
+			// printf("Reached end of chain. Extending... ");
+			tmp = fat_create_chain(old);
+			static char zeros[DISK_SECTOR_SIZE];
+			disk_write(filesys_disk, cluster_to_sector(tmp), zeros);
+		}
+		// printf("Moved to next cluster %d. ", tmp);
 	}
+	// printf("\n");
 #endif
 
 	while (size > 0) {
 		/* Sector to write, starting byte offset within sector. */
 #ifdef EFILESYS
 		disk_sector_t sector_idx = cluster_to_sector(tmp);
-		tmp = fat_get(tmp);
+		cluster_t old = tmp;
+		tmp = fat_get(old);
+		if (tmp==EOChain) {
+			tmp = fat_create_chain(old);
+			static char zeros[DISK_SECTOR_SIZE];
+			disk_write(filesys_disk, cluster_to_sector(tmp), zeros);
+		}
 #else
 		disk_sector_t sector_idx = byte_to_sector (inode, offset);
 #endif
@@ -311,17 +329,23 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 		int sector_ofs = offset % DISK_SECTOR_SIZE;
 
 		/* Bytes left in inode, bytes left in sector, lesser of the two. */
-		off_t inode_left = inode_length (inode) - offset;
+		// off_t inode_left = inode_length (inode) - offset;
 		int sector_left = DISK_SECTOR_SIZE - sector_ofs;
-		int min_left = inode_left < sector_left ? inode_left : sector_left;
+		// int min_left = inode_left < sector_left ? inode_left : sector_left;
 
 		/* Number of bytes to actually write into this sector. */
-		int chunk_size = size < min_left ? size : min_left;
-		if (chunk_size <= 0)
+		// printf("Size %d, min_left %d\n", size, min_left);
+		int chunk_size = size < sector_left ? size : sector_left;
+		printf("Going into conditional, chunk size %d--------------\n", chunk_size);
+		if (chunk_size <= 0) {
+			printf("Reaches break+++++++++++++++++\n");
 			break;
-
+		}
+			
+		printf("Does not reach break+++++++++++++++++\n");
 		if (sector_ofs == 0 && chunk_size == DISK_SECTOR_SIZE) {
 			/* Write full sector directly to disk. */
+			printf("writing.\n");
 			disk_write (filesys_disk, sector_idx, buffer + bytes_written); 
 		} else {
 			/* We need a bounce buffer. */
@@ -339,6 +363,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 			else
 				memset (bounce, 0, DISK_SECTOR_SIZE);
 			memcpy (bounce + sector_ofs, buffer + bytes_written, chunk_size);
+			printf("writing.\n");
 			disk_write (filesys_disk, sector_idx, bounce); 
 		}
 
@@ -346,9 +371,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 		size -= chunk_size;
 		offset += chunk_size;
 		bytes_written += chunk_size;
+		inode->data.length += chunk_size;
 	}
 	free (bounce);
-
+	printf("...%d...\n", bytes_written);
 	return bytes_written;
 }
 

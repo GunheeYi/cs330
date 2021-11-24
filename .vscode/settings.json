@@ -1,22 +1,14 @@
 {
     "files.associations": {
-        "interrupt.h": "c",
-        "*.inc": "c",
-        "process.h": "c",
-        "vm.h": "c",
-        "syscall.h": "c",
-        "main.h": "c",
-        "thread.h": "c",
-        "lib.h": "c",
-        "string.h": "c",
-        "intrinsic.h": "c",
-        "array": "c",
-        "functional": "c",
-        "istream": "c",
+        "*.tcc": "c",
+        "exception": "c",
+        "fstream": "c",
+        "iosfwd": "c",
+        "new": "c",
         "ostream": "c",
-        "tuple": "c",
-        "type_traits": "c",
-        "utility": "c"
+        "sstream": "c",
+        "streambuf": "c",
+        "*.inc": "cpp"
     },
     "C_Cpp.dimInactiveRegions": false
 }
