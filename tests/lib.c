@@ -122,7 +122,7 @@ check_file_handle (int fd,
      file. */
   file_size = filesize (fd);
   if (file_size != size)
-    msg ("size of %s (%zu) differs from expected (%zu)",
+    msg ("size of %s (%zu) differs from expected1 (%zu)",
           file_name, file_size, size);
 
   /* Read the file block-by-block, comparing data as we go. */
@@ -146,7 +146,7 @@ check_file_handle (int fd,
 
   /* Now fail due to wrong file size. */
   if (file_size != size)
-    fail ("size of %s (%zu) differs from expected (%zu)",
+    fail ("size of %s (%zu) differs from expected2 (%zu)",
           file_name, file_size, size);
 
   msg ("verified contents of \"%s\"", file_name);
