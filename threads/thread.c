@@ -627,6 +627,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->stdin_allowed = true;
 	t->stdout_allowed = true;
 #endif
+#ifdef EFILESYS
+	t->curr_dir = dir_open_root();
+#endif
+
 	if (t!=idle_thread) list_push_back(&all_list, &t->allelem);
 }
 

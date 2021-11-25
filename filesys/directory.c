@@ -113,12 +113,58 @@ dir_lookup (const struct dir *dir, const char *name,
 	ASSERT (dir != NULL);
 	ASSERT (name != NULL);
 
-	if (lookup (dir, name, &e, NULL))
-		*inode = inode_open (e.inode_sector);
-	else
-		*inode = NULL;
+	if (name=="") { // necessary?
+		*inode = dir->inode;
+		return *inode!=NULL;
+	}
 
-	return *inode != NULL;
+	// name is "/" or "/~"
+	if (name[0]=='/') {
+		return dir_lookup(dir_open_root(), name+1, inode);
+	}
+
+	char* name_first[PATH_MAX];
+	strlcpy(name_first, name, strlen(name));
+	char* ptr_slash = strchr(name_first, '/');
+	char* name_last = "";
+	if (ptr_slash!=NULL) {
+		name_last = (ptr_slash-name_first) + 1;
+		name_last[-1] = '\0';
+	}
+	
+	// name is "a" or "a/" ("." and "./" included)
+	if (ptr_slash==NULL || name_last=="") {
+		if (name_first==".") {
+			*inode = dir->inode;
+		} else {
+			if (lookup (dir, name_first, &e, NULL))
+			*inode = inode_open (e.inode_sector);
+			else
+				*inode = NULL;
+
+			if (dir!=thread_current()->curr_dir) {
+				dir_close(dir);
+			}
+		}
+		return *inode != NULL;
+	}
+
+	ASSERT(name_first!="");
+
+	// name is "a/b"
+	struct inode *inode_child = NULL;
+	if (dir_lookup (dir, name_first, &inode_child)) {
+		return false;
+	}
+	struct dir* dir_child;
+	if (!(dir_child = dir_open(inode_child))) {
+		return false;
+	}
+	return dir_lookup(dir_child, name_last, inode);
+
+	// ".." not covered yet. Make a directory pointing to its parent when creating a directory, and treat it as any other file or directory afterwards.
+	// Symlink, soft link..?
+	
 }
 
 /* Adds a file named NAME to DIR, which must not already contain a
