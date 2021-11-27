@@ -493,7 +493,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	process_activate (thread_current ());
 
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	file = filesys_open (file_name, NULL);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;

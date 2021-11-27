@@ -7,6 +7,9 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#ifdef EFILESYS
+	#include <string.h>
+#endif
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -70,11 +73,11 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CLOSE: closee((int) a1); break;
 		case SYS_MMAP: f->R.rax = mmapp((void*) a1, (size_t) a2, (int) a3, (int) a4, (off_t) a5); break;
 		case SYS_MUNMAP: munmapp((void*) a1); break;
-		// case SYS_CHDIR: chdirr(); break;
-		// case SYS_MKDIR: mkdirr(); break;
-		// case SYS_READDIR: readdirr(); break;
-		// case SYS_ISDIR: isdirr(); break;
-		// case SYS_INUMBER: inumberr(); break;
+		case SYS_CHDIR: f->R.rax = chdirr((const char*) a1); break;
+		case SYS_MKDIR: f->R.rax = mkdirr((const char*) a1); break;
+		case SYS_READDIR: f->R.rax = readdirr((int) a1, (char) a2); break;
+		case SYS_ISDIR: f->R.rax = isdirr((int) a1); break;
+		case SYS_INUMBER: f->R.rax = inumberr((int) a1); break;
 		// case SYS_SYMLINK: symlinkk(); break;
 		// case SYS_MOUNT: mountt(); break;
 		// case SYS_UMOUNT: umountt(); break;
@@ -93,6 +96,11 @@ void exitt(int status) {
 
 pid_t forkk(const char *thread_name, struct intr_frame* f) { return process_fork(thread_name, f); }
 
+bool is_not_mapped(uint64_t va) {
+	bool not_mapped = pml4e_walk(thread_current()->pml4, va, false) == NULL;
+	return not_mapped;
+}
+
 int execc(const char *file) {
 	if (is_not_mapped(file) || process_exec(file) < 0) exitt(-1); // is bad ptr or process_exec() not successful
 }
@@ -108,15 +116,16 @@ bool createe(const char *file, unsigned initial_size) {
 
 bool removee(const char *file) { return filesys_remove(file); }
 
-int openn(const char *file) {
-	if ( file==NULL || is_not_mapped(file) ) exitt(-1); // null pointer for file name / file name virtual address not mapped
-	if ( file[0]==NULL ) return -1; // empty file
+int openn(const char *path) {
+	if ( path==NULL || is_not_mapped(path) ) exitt(-1); // null pointer for file name / file name virtual address not mapped
+	if ( path[0]==NULL ) return -1; // empty file
 
 	lock_acquire(&lock_file);
-	struct file* fp = filesys_open(file);
+	bool is_dir;
+	void* fdp = filesys_open(path, &is_dir); // file pointer or directory pointer
 	lock_release(&lock_file);
 	
-	if (fp==NULL) {
+	if (fdp==NULL) {
 		// lock_release(&lock_file);
 		return -1;
 	}
@@ -135,7 +144,8 @@ int openn(const char *file) {
 		return -1;
 	}
 	new_file_map->fd = curr->fd_next;
-	new_file_map->fp = fp;
+	new_file_map->fdp = fdp;
+	new_file_map->is_dir = is_dir;
 	new_file_map->copied_fd = -1;
 	new_file_map->file_exists = true;
 	list_push_back(&curr->fm_list, &new_file_map->elem);
@@ -144,9 +154,36 @@ int openn(const char *file) {
 	return curr->fd_next++;
 }
 
+struct fm* get_fm(int fd) {
+	struct thread* t = thread_current();
+	struct fm* fm;
+	for (struct list_elem *e = list_begin(&t->fm_list); e != list_end (&t->fm_list); e = list_next(e))
+	{
+		fm = list_entry (e, struct fm, elem);
+		if (fm->fd==fd) return fm;
+	}
+	return NULL;
+}
+
 int filesizee(int fd) {
 	int length = file_length(get_fm(fd)->fp);
 	return length;
+}
+
+void check_buffer(const void *buffer, unsigned size, bool write) {
+	for (int i = 0; i < size; i+=PGSIZE)
+	{
+		if(is_kernel_vaddr(buffer+i)) {
+			exitt(-1);
+		}
+		struct page* p = spt_find_page(&thread_current()->spt, buffer+i);
+		if (p==NULL) {
+			return;
+		}
+		if (write && !p->writable) {
+			exitt(-1);
+		}
+	}	
 }
 
 int readd(int fd, void *buffer, unsigned size) {
@@ -236,40 +273,85 @@ void munmapp(void *addr) {
 	do_munmap(addr);
 };
 
-struct fm* get_fm(int fd) {
-	struct thread* t = thread_current();
-	struct fm* fm;
-	for (struct list_elem *e = list_begin(&t->fm_list); e != list_end (&t->fm_list); e = list_next(e))
-	{
-		fm = list_entry (e, struct fm, elem);
-		if (fm->fd==fd) return fm;
+#ifdef EFILESYS
+bool chdirr(const char *dir) {
+	ASSERT(dir!=NULL); // NULL
+	ASSERT(*dir!=NULL); // empty string
+	struct inode *inode = NULL;
+	struct dir** curr_dir = thread_current()->curr_dir;
+	if (!dir_lookup(*curr_dir, dir, &inode)) {
+		return false;
 	}
-	return NULL;
-}
+	*curr_dir = dir_open(inode);
+	return *curr_dir!=NULL;
+};
+bool mkdirr(const char *dir) {
+	// wrong: "", "/", ".", "./" 
+	// "a/" -> "a"
+	// "/a" -> dir_add(root, "a")
 
-bool is_not_mapped(uint64_t va) {
-	bool not_mapped = pml4e_walk(thread_current()->pml4, va, false) == NULL;
-	return not_mapped;
-}
+	// empty string이거나 ".", ".."이면 return false.
+	// '/'가 없으면 dir_add(curr_dir, dir)
+	// '/'로 끝나면 마지막 '/'를 뗀 string으로 다시 call.
+	// 마지막 '/'를 기준으로 path와 new_dir로 잘라서, 
+	// 앞에 path가 empty string이면 dir_add(root, new_dir)
+	// 나머지는 dir_add(path, new_dir)
+	
+	ASSERT(dir!=NULL);
+	// empty string이거나 ".", ".."이면 return false.
+	if (dir=="" || dir=="." || dir=="..") {
+		return false;
+	}
+	// '/'가 없으면 dir_add(curr_dir, dir)
+	char* path[PATH_MAX];
+	strlcpy(path, dir, strlen(dir));
+	char* ptr_slash = strrchr(path, '/'); // path 뒤에서부터 '/'의 인덱스를 찾음
+	if (ptr_slash==NULL) {
+		return dir_add(thread_current()->curr_dir, dir, cluster_to_sector(fat_create_chain(0)));
+	}
+	// '/'로 끝나면 마지막 '/'를 뗀 string으로 다시 call.
+	if (path[strlen(path)-1]=='/') {
+		path[strlen(path)-1] = '\0';
+		return mkdirr(path);
+	}
+	// 마지막 '/'를 기준으로 path와 new_dir로 잘라서, 
+	*ptr_slash = '\0';
+	char* new_dir = ptr_slash + 1;
 
-// void close_fm(struct fm* fm) {
-// 	if (fm->file_exists == true) file_close(fm->fp);
-// 	list_remove(&fm->elem);
-// 	palloc_free_page(fm);
-// }
+	// 앞에 path가 empty string이면 dir_add(root, new_dir)
+	if (path=="") {
+		return dir_add(dir_open_root(), new_dir, cluster_to_sector(fat_create_chain(0)));
+	}
+	
+	// 나머지는 dir_add(path, new_dir)
+	struct inode* inode = NULL;
+	if (!dir_lookup(thread_current()->curr_dir, path, &inode) || inode==NULL) {
+		return false;
+	}
+	return dir_add(dir_open(inode), new_dir, cluster_to_sector(fat_create_chain(0)));
+	
+};
+bool readdirr(int fd, char name[READDIR_MAX_LEN + 1]) {
+	return false;
+};
+bool isdirr(int fd) {
+	return get_fm(fd)->is_dir;
+};
+int inumberr(int fd) {
+	struct fm* fm = get_fm(fd);
+	if (fm->is_dir) {
+		return ((struct dir*)(fm->fdp))->inode->sector;
+	} else {
+		return ((struct file*)(fm->fdp))->inode->sector;
+	}
+};
+#endif
 
-void check_buffer(const void *buffer, unsigned size, bool write) {
-	for (int i = 0; i < size; i+=PGSIZE)
-	{
-		if(is_kernel_vaddr(buffer+i)) {
-			exitt(-1);
-		}
-		struct page* p = spt_find_page(&thread_current()->spt, buffer+i);
-		if (p==NULL) {
-			return;
-		}
-		if (write && !p->writable) {
-			exitt(-1);
-		}
-	}	
-}
+
+
+//////////////////////////////////////
+//
+// stdio.h에 EFILESYS define되어있음! 최종 제출 전 지우기!!!!!!!!!!!!!!!!!
+//
+//////////////////////////////////////
+

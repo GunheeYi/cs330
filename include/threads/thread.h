@@ -33,7 +33,8 @@ typedef int tid_t;
 
 struct fm {
     int fd;
-	struct file* fp;
+	void* fdp;
+	bool is_dir;
     struct list_elem elem;
 	int copied_fd;
 	bool file_exists;

@@ -9,6 +9,7 @@
 #include "devices/disk.h"
 #ifdef EFILESYS
 	#include "filesys/fat.h"
+	#include "threads/thread.h"
 #endif
 
 /* The disk that contains the file system. */
@@ -74,7 +75,7 @@ filesys_create (const char *name, off_t initial_size) {
 	inode_sector = cluster_to_sector(clst);
 	
 	bool success = (dir != NULL
-			&& inode_create (inode_sector, initial_size)
+			&& inode_create (inode_sector, initial_size, INODE_FILE)
 			&& dir_add (dir, name, inode_sector));
 
 	if (!success) {
@@ -98,8 +99,8 @@ filesys_create (const char *name, off_t initial_size) {
  * otherwise.
  * Fails if no file named NAME exists,
  * or if an internal memory allocation fails. */
-struct file *
-filesys_open (const char *name) {
+void*
+filesys_open (const char *name, bool* is_dir) {
 #ifdef EFILESYS
 	struct dir *dir = thread_current()->curr_dir;
 #else
@@ -111,7 +112,11 @@ filesys_open (const char *name) {
 		dir_lookup (dir, name, &inode);
 	dir_close (dir); // ???
 
-	return file_open (inode);
+	// dir_lookup이 실패한 경우에 대한 handling은 필요 없나?
+	
+	// inode type에 따라 적합한 open()을 부르고 void*에 cast함
+	*is_dir = inode->type==INODE_DIR;
+	return (void*) (*is_dir ? dir_open(inode) : file_open (inode));
 }
 
 /* Deletes the file named NAME.

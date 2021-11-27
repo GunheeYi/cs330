@@ -9,7 +9,10 @@
         "sstream": "c",
         "streambuf": "c",
         "*.inc": "cpp",
-        "string_view": "c"
+        "string_view": "c",
+        "syscall-nr.h": "c",
+        "stdio.h": "c",
+        "thread.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }
