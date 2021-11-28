@@ -184,8 +184,8 @@ __do_fork (void *aux) {
 		if (current_fm==NULL) {
 			goto error;
 		}
-		current_fm->fp = file_duplicate(parent_fm->fp);
-		if (current_fm->fp==NULL) goto error;
+		current_fm->fdp = file_duplicate(parent_fm->fdp);
+		if (current_fm->fdp==NULL) goto error;
 		current_fm->fd = parent_fm->fd;
 		current_fm->copied_fd = parent_fm->copied_fd;
 		current_fm->file_exists = parent_fm->file_exists;

@@ -166,7 +166,7 @@ struct fm* get_fm(int fd) {
 }
 
 int filesizee(int fd) {
-	int length = file_length(get_fm(fd)->fp);
+	int length = file_length(get_fm(fd)->fdp);
 	return length;
 }
 
@@ -201,7 +201,7 @@ int readd(int fd, void *buffer, unsigned size) {
 		struct fm* fm = get_fm(fd);
 		if ( fm==NULL ) exitt(-1); // fd has not been issued (bad)
 		lock_acquire(&lock_file);
-		int size_read = file_read(fm->fp, buffer, size);
+		int size_read = file_read(fm->fdp, buffer, size);
 		lock_release(&lock_file);
 		return size_read;
 	}
@@ -224,7 +224,7 @@ int writee(int fd, const void *buffer, unsigned size) {
 		struct fm* fm = get_fm(fd);
 		if ( fm==NULL ) return -1; // fd has not been issued (bad)
 		lock_acquire(&lock_file);
-		int size_wrote = file_write(fm->fp, buffer, size);
+		int size_wrote = file_write(fm->fdp, buffer, size);
 		lock_release(&lock_file);
 		return size_wrote;
 	}
@@ -232,12 +232,12 @@ int writee(int fd, const void *buffer, unsigned size) {
 
 void seekk(int fd, unsigned position) {
 	if (get_fm(fd) == NULL) return;
-	file_seek(get_fm(fd)->fp, position);
+	file_seek(get_fm(fd)->fdp, position);
 }
 
 unsigned telll(int fd) {
 	if (get_fm(fd) == NULL) return;
-	return file_tell(get_fm(fd)->fp);
+	return file_tell(get_fm(fd)->fdp);
 }
 
 void closee(int fd) {
@@ -249,7 +249,7 @@ void closee(int fd) {
 	struct fm* main_fm = get_fm(fd);
 	if ( get_fm(fd)==NULL ) return; // fd has not been issued (bad)
 	
-	if (main_fm->file_exists == true) file_close(main_fm->fp);
+	if (main_fm->file_exists == true) file_close(main_fm->fdp);
 	list_remove(&main_fm->elem);
 	free(main_fm);
 	// palloc_free_page(main_fm);////////////////////////////////
@@ -266,8 +266,8 @@ void* mmapp(void *addr, size_t length, int writable, int fd, off_t offset) {
 		|| fd==1
 	) return MAP_FAILED;
 	struct fm* fm = get_fm(fd);
-	if (fm==NULL || fm->fp==NULL || file_length(fm->fp)==0) return MAP_FAILED;
-	return do_mmap(addr, length, writable, fm->fp, offset);
+	if (fm==NULL || fm->fdp==NULL || file_length(fm->fdp)==0) return MAP_FAILED;
+	return do_mmap(addr, length, writable, fm->fdp, offset);
 };
 void munmapp(void *addr) {
 	do_munmap(addr);

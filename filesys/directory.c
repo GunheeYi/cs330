@@ -3,17 +3,10 @@
 #include <string.h>
 #include <list.h>
 #include "filesys/filesys.h"
-#include "filesys/inode.h"
 #include "threads/malloc.h"
 #ifdef EFILESYS
 	#include "threads/thread.h"
 #endif
-
-/* A directory. */
-struct dir {
-	struct inode *inode;                /* Backing store. */
-	off_t pos;                          /* Current position. */
-};
 
 /* A single directory entry. */
 struct dir_entry {
@@ -126,7 +119,7 @@ dir_lookup (const struct dir *dir, const char *name,
 		return dir_lookup(dir_open_root(), name+1, inode);
 	}
 
-	char* name_first[PATH_MAX];
+	char name_first[PATH_MAX];
 	strlcpy(name_first, name, strlen(name));
 	char* ptr_slash = strchr(name_first, '/');
 	char* name_last = "";

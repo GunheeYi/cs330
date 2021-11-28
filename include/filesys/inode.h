@@ -2,10 +2,16 @@
 #define FILESYS_INODE_H
 
 #include <stdbool.h>
+#include <list.h>
 #include "filesys/off_t.h"
 #include "devices/disk.h"
 
 struct bitmap;
+
+enum inode_type {
+	INODE_FILE,
+	INODE_DIR
+};
 
 /* On-disk inode.
  * Must be exactly DISK_SECTOR_SIZE bytes long. */
@@ -14,11 +20,7 @@ struct inode_disk {
 	off_t length;                       /* File size in bytes. */
 	unsigned magic;                     /* Magic number. */
 	uint32_t unused[125];               /* Not used. */
-};
-
-enum inode_type {
-	INODE_FILE,
-	INODE_DIR
+	enum inode_type type;
 };
 
 /* In-memory inode. */
@@ -29,7 +31,7 @@ struct inode {
 	bool removed;                       /* True if deleted, false otherwise. */
 	int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
 	struct inode_disk data;             /* Inode content. */
-	 type;
+	enum inode_type type;
 };
 
 void inode_init (void);
