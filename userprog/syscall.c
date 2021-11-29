@@ -275,6 +275,7 @@ void munmapp(void *addr) {
 
 #ifdef EFILESYS
 bool chdirr(const char *dir) {
+	ASSERT(0);
 	ASSERT(dir!=NULL); // NULL
 	ASSERT(*dir!=NULL); // empty string
 	struct inode *inode = NULL;

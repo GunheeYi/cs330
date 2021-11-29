@@ -4,9 +4,6 @@
 #include <list.h>
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
-#ifdef EFILESYS
-	#include "threads/thread.h"
-#endif
 
 /* A single directory entry. */
 struct dir_entry {
@@ -43,7 +40,7 @@ dir_open (struct inode *inode) {
 struct dir *
 dir_open_root (void) {
 #ifdef EFILESYS
-	return dir_open (inode_open (cluster_to_sector(ROOT_DIR_SECTOR)));
+	return dir_open (inode_open (cluster_to_sector(ROOT_DIR_CLUSTER)));
 #else
 	return dir_open (inode_open (ROOT_DIR_SECTOR));
 #endif
@@ -62,6 +59,7 @@ dir_close (struct dir *dir) {
 	if (dir != NULL) {
 		inode_close (dir->inode);
 		free (dir);
+		dir=NULL; // ??
 	}
 }
 
@@ -119,8 +117,9 @@ dir_lookup (const struct dir *dir, const char *name,
 		return dir_lookup(dir_open_root(), name+1, inode);
 	}
 
-	char name_first[PATH_MAX];
-	strlcpy(name_first, name, strlen(name));
+	// char name_first[PATH_MAX];
+	char* name_first = malloc(sizeof(char)*PATH_MAX);
+	strlcpy(name_first, name, strlen(name)+1);
 	char* ptr_slash = strchr(name_first, '/');
 	char* name_last = "";
 	if (ptr_slash!=NULL) {
@@ -134,13 +133,13 @@ dir_lookup (const struct dir *dir, const char *name,
 			*inode = dir->inode;
 		} else {
 			if (lookup (dir, name_first, &e, NULL))
-			*inode = inode_open (e.inode_sector);
+				*inode = inode_open (e.inode_sector);
 			else
 				*inode = NULL;
 
-			if (dir!=thread_current()->curr_dir) {
-				dir_close(dir);
-			}
+			// if (dir!=thread_current()->curr_dir) {
+			// 	dir_close(dir);
+			// }
 		}
 		return *inode != NULL;
 	}

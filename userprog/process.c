@@ -1,3 +1,5 @@
+#define EFILESYS
+
 #include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
@@ -34,6 +36,7 @@ static void __do_fork (void *);
 static void
 process_init (void) {
 	struct thread *current = thread_current ();
+	current->curr_dir = dir_open_root();
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.

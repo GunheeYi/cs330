@@ -34,6 +34,8 @@ filesys_init (bool format) {
 		do_format ();
 
 	fat_open ();
+
+	thread_current()->curr_dir = dir_open_root();
 #else
 	/* Original FS */
 	free_map_init ();
@@ -65,7 +67,7 @@ bool
 filesys_create (const char *name, off_t initial_size) {
 	disk_sector_t inode_sector = 0;
 #ifdef EFILESYS
-	struct dir *dir = thread_current()->curr_dir;
+	struct dir *dir = dir_reopen(thread_current()->curr_dir);
 #else
 	struct dir *dir = dir_open_root();
 #endif
@@ -76,7 +78,7 @@ filesys_create (const char *name, off_t initial_size) {
 	
 	bool success = (dir != NULL
 			&& inode_create (inode_sector, initial_size, INODE_FILE)
-			&& dir_add (dir, name, inode_sector));
+			&& dir_add (dir, name, inode_sector)); // ???? TODO: dir_add는 name을 파싱할 능력이 없음
 
 	if (!success) {
 		fat_remove_chain(clst, 0);
@@ -102,21 +104,35 @@ filesys_create (const char *name, off_t initial_size) {
 void*
 filesys_open (const char *name, bool* is_dir) {
 #ifdef EFILESYS
-	struct dir *dir = thread_current()->curr_dir;
+	if (thread_current()->curr_dir == NULL){
+		ASSERT(0);
+	}
+	ASSERT(thread_current()->curr_dir!=NULL); // ??
+	struct dir *dir = dir_reopen(thread_current()->curr_dir); 
 #else
 	struct dir *dir = dir_open_root();
 #endif
 	struct inode *inode = NULL;
 
-	if (dir != NULL)
-		dir_lookup (dir, name, &inode);
+	if (dir != NULL) {
+		if (!dir_lookup (dir, name, &inode)) {
+			printf("Lookup failed!");
+			return NULL;
+		}
+	}
+
 	dir_close (dir); // ???
 
 	// dir_lookup이 실패한 경우에 대한 handling은 필요 없나?
 	
 	// inode type에 따라 적합한 open()을 부르고 void*에 cast함
-	*is_dir = inode->type==INODE_DIR;
-	return (void*) (*is_dir ? dir_open(inode) : file_open (inode));
+	// printf("Hello! Nice to meet you.\n");
+	// printf("Here is the type of the inode: %d\n", inode->data.type);
+	bool is_dir_ = (inode->data.type==INODE_DIR);
+	if (is_dir!=NULL) {
+		*is_dir = is_dir_;
+	}
+	return (void*) (is_dir ? dir_open(inode) : file_open (inode));
 }
 
 /* Deletes the file named NAME.

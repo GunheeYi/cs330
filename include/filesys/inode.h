@@ -9,8 +9,8 @@
 struct bitmap;
 
 enum inode_type {
-	INODE_FILE,
-	INODE_DIR
+	INODE_FILE = 1,
+	INODE_DIR = 2
 };
 
 /* On-disk inode.
@@ -19,8 +19,8 @@ struct inode_disk {
 	disk_sector_t start;                /* First data sector. */
 	off_t length;                       /* File size in bytes. */
 	unsigned magic;                     /* Magic number. */
-	uint32_t unused[125];               /* Not used. */
 	enum inode_type type;
+	uint32_t unused[124];               /* Not used. */
 };
 
 /* In-memory inode. */
@@ -31,7 +31,6 @@ struct inode {
 	bool removed;                       /* True if deleted, false otherwise. */
 	int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
 	struct inode_disk data;             /* Inode content. */
-	enum inode_type type;
 };
 
 void inode_init (void);

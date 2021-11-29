@@ -5,6 +5,10 @@
 #include <stddef.h>
 #include "devices/disk.h"
 #include "filesys/inode.h"
+#ifdef EFILESYS
+	#include "threads/thread.h"
+	#include "filesys/fat.h"
+#endif
 
 /* Maximum length of a file name component.
  * This is the traditional UNIX maximum length.
