@@ -116,7 +116,6 @@ filesys_open (const char *name, bool* is_dir) {
 
 	if (dir != NULL) {
 		if (!dir_lookup (dir, name, &inode)) {
-			printf("Lookup failed!");
 			return NULL;
 		}
 	}
