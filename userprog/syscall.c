@@ -222,7 +222,7 @@ int writee(int fd, const void *buffer, unsigned size) {
 	}
 	else { // file
 		struct fm* fm = get_fm(fd);
-		if ( fm==NULL ) return -1; // fd has not been issued (bad)
+		if ( fm==NULL || fm->is_dir ) return -1; // fd has not been issued(bad), or it points to a directory
 		lock_acquire(&lock_file);
 		int size_wrote = file_write(fm->fdp, buffer, size);
 		lock_release(&lock_file);
@@ -275,16 +275,14 @@ void munmapp(void *addr) {
 
 #ifdef EFILESYS
 bool chdirr(const char *dir) {
-	ASSERT(0);
 	ASSERT(dir!=NULL); // NULL
 	ASSERT(*dir!=NULL); // empty string
 	struct inode *inode = NULL;
-	struct dir** curr_dir = thread_current()->curr_dir;
-	if (!dir_lookup(*curr_dir, dir, &inode)) {
+	if (!dir_lookup(thread_current()->curr_dir, dir, &inode)) {
 		return false;
 	}
-	*curr_dir = dir_open(inode);
-	return *curr_dir!=NULL;
+	thread_current()->curr_dir = dir_open(inode);
+	return thread_current()->curr_dir!=NULL;
 };
 
 bool mkdirrr(struct dir* parent_dir, const char* name) { // recursive mkdirr
@@ -297,8 +295,8 @@ bool mkdirrr(struct dir* parent_dir, const char* name) { // recursive mkdirr
 	if (name[0]=='/') {
 		return mkdirrr(dir_open_root(), name+1);
 	}
-	char* path[PATH_MAX]; // 가공 가능한 name 복제품
-	strlcpy(path, name, strlen(parent_dir));
+	char* path = malloc(sizeof(char)*PATH_MAX); // 가공 가능한 name 복제품
+	strlcpy(path, name, strlen(name)+1);
 	// name이 '/'로 끝나면 그걸 떼고 똑같은 dir로 다시 call
 	if (path[strlen(path)-1]=='/') {
 		path[strlen(path)-1] = '\0';
@@ -322,18 +320,17 @@ bool mkdirrr(struct dir* parent_dir, const char* name) { // recursive mkdirr
 		// 거기서 new_dir을 만들도록 다시 call
 		mkdirrr(dir_reopen(inode), new_dir);
 	}
-
 	// 지금 dir에 path(name) 그대로 add
 	disk_sector_t child_sector = cluster_to_sector(fat_create_chain(0));
-	if (!dir_create(child_sector, 2)) { // 일단 .과 ..이 들어갈 entry 두 개만 할당
+	if (!dir_create(child_sector, 16)) { // 일단 .과 ..이 들어갈 entry 두 개만 할당 (???)
 		return false;
 	}
 	struct dir* child_dir = dir_open(inode_open(child_sector));
-	
+
 	return child_dir!=NULL &&
 		dir_add(parent_dir, name, child_sector) &&
-		dir_add(child_dir, '.', child_sector) &&
-		dir_add(child_dir, '..', parent_dir->inode->sector);
+		dir_add(child_dir, ".", child_sector) &&
+		dir_add(child_dir, "..", parent_dir->inode->sector);
 }
 
 bool mkdirr(const char *path) {

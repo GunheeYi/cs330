@@ -222,7 +222,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) {
 
 #ifdef EFILESYS
 		disk_sector_t sector_idx = cluster_to_sector(tmp);
-		tmp = fat_get(tmp);
+		// tmp = fat_get(tmp);
 #else
 		disk_sector_t sector_idx = byte_to_sector (inode, offset);
 #endif
@@ -258,6 +258,11 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) {
 		size -= chunk_size;
 		offset += chunk_size;
 		bytes_read += chunk_size;
+
+		tmp = fat_get(tmp);
+		if (size > 0 && tmp == EOChain){
+			break;
+		}
 	}
 	free (bounce);
 	return bytes_read;

@@ -75,15 +75,30 @@ filesys_create (const char *name, off_t initial_size) {
 	cluster_t clst = fat_create_chain(0);
 	
 	inode_sector = cluster_to_sector(clst);
-	
+	char* path = malloc(sizeof(char)*PATH_MAX);
+	strlcpy(path, name, strlen(name)+1);
+	if (path[strlen(path)-1]=='/') {
+		path[strlen(path)-1] = '\0';
+	}
+	char* ptr_slash = strrchr(path, '/');
+	if (ptr_slash!=NULL) {
+		*ptr_slash = '\0';
+		struct inode* inode = NULL;
+		if (!dir_lookup(thread_current()->curr_dir, path, &inode) || inode==NULL) {
+			return false;
+		}
+		// dir_close(dir); ?
+		dir = dir_open(inode);
+		path = ptr_slash + 1;
+		ASSERT(path!="");
+	}
 	bool success = (dir != NULL
 			&& inode_create (inode_sector, initial_size, INODE_FILE)
-			&& dir_add (dir, name, inode_sector));
-
+			&& dir_add (dir, path, inode_sector));
 	if (!success) {
 		fat_remove_chain(clst, 0);
 	}
-			
+
 #else
 	bool success = (dir != NULL
 			&& free_map_allocate (1, &inode_sector)
@@ -120,18 +135,16 @@ filesys_open (const char *name, bool* is_dir) {
 		}
 	}
 
-	dir_close (dir); // ???
+	dir_close (dir); // ??? - reopen해줬으니 닫는게 맞을 듯
 
 	// dir_lookup이 실패한 경우에 대한 handling은 필요 없나?
 	
 	// inode type에 따라 적합한 open()을 부르고 void*에 cast함
-	// printf("Hello! Nice to meet you.\n");
-	// printf("Here is the type of the inode: %d\n", inode->data.type);
 	bool is_dir_ = (inode->data.type==INODE_DIR);
 	if (is_dir!=NULL) {
 		*is_dir = is_dir_;
 	}
-	return (void*) (is_dir ? dir_open(inode) : file_open (inode));
+	return (void*) (is_dir_ ? dir_open(inode) : file_open (inode));
 }
 
 /* Deletes the file named NAME.
@@ -141,7 +154,7 @@ filesys_open (const char *name, bool* is_dir) {
 bool
 filesys_remove (const char *name) {
 #ifdef EFILESYS
-	struct dir *dir = thread_current()->curr_dir;
+	struct dir *dir = dir_reopen(thread_current()->curr_dir);
 #else
 	struct dir *dir = dir_open_root();
 #endif

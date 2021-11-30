@@ -13,7 +13,8 @@
         "syscall-nr.h": "c",
         "stdio.h": "c",
         "thread.h": "c",
-        "directory.h": "c"
+        "directory.h": "c",
+        "lib.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }
