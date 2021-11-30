@@ -127,19 +127,12 @@ dir_lookup (const struct dir *dir, const char *name,
 		name_last[-1] = '\0';
 	}
 	
-	// name is "a" or "a/" ("." and "./" included)
+	// name is "a" or "a/"
 	if (ptr_slash==NULL || name_last=="") {
-		if (name_first==".") {
-			*inode = dir->inode;
+		if (lookup (dir, name_first, &e, NULL)) {
+			*inode = inode_open (e.inode_sector);
 		} else {
-			if (lookup (dir, name_first, &e, NULL))
-				*inode = inode_open (e.inode_sector);
-			else
-				*inode = NULL;
-
-			// if (dir!=thread_current()->curr_dir) {
-			// 	dir_close(dir);
-			// }
+			*inode = NULL;
 		}
 		return *inode != NULL;
 	}
@@ -157,7 +150,6 @@ dir_lookup (const struct dir *dir, const char *name,
 	}
 	return dir_lookup(dir_child, name_last, inode);
 
-	// ".." not covered yet. Make a directory pointing to its parent when creating a directory, and treat it as any other file or directory afterwards.
 	// Symlink, soft link..?
 	
 }

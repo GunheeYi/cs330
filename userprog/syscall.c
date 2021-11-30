@@ -286,51 +286,58 @@ bool chdirr(const char *dir) {
 	*curr_dir = dir_open(inode);
 	return *curr_dir!=NULL;
 };
-bool mkdirr(const char *dir) {
-	// wrong: "", "/", ".", "./" 
-	// "a/" -> "a"
-	// "/a" -> dir_add(root, "a")
 
+bool mkdirrr(struct dir* parent_dir, const char* name) { // recursive mkdirr
+	ASSERT(parent_dir!=NULL);
 	// empty string이거나 ".", ".."이면 return false.
-	// '/'가 없으면 dir_add(curr_dir, dir)
-	// '/'로 끝나면 마지막 '/'를 뗀 string으로 다시 call.
-	// 마지막 '/'를 기준으로 path와 new_dir로 잘라서, 
-	// 앞에 path가 empty string이면 dir_add(root, new_dir)
-	// 나머지는 dir_add(path, new_dir)
-	
-	ASSERT(dir!=NULL);
-	// empty string이거나 ".", ".."이면 return false.
-	if (dir=="" || dir=="." || dir=="..") {
+	if (parent_dir=="" || parent_dir=="." || parent_dir=="..") {
 		return false;
 	}
-	// '/'가 없으면 dir_add(curr_dir, dir)
-	char* path[PATH_MAX];
-	strlcpy(path, dir, strlen(dir));
-	char* ptr_slash = strrchr(path, '/'); // path 뒤에서부터 '/'의 인덱스를 찾음
-	if (ptr_slash==NULL) {
-		return dir_add(thread_current()->curr_dir, dir, cluster_to_sector(fat_create_chain(0)));
+	// name이 '/'로 시작하면 그걸 떼고 dir을 root로 설정해 다시 call
+	if (name[0]=='/') {
+		return mkdirrr(dir_open_root(), name+1);
 	}
-	// '/'로 끝나면 마지막 '/'를 뗀 string으로 다시 call.
+	char* path[PATH_MAX]; // 가공 가능한 name 복제품
+	strlcpy(path, name, strlen(parent_dir));
+	// name이 '/'로 끝나면 그걸 떼고 똑같은 dir로 다시 call
 	if (path[strlen(path)-1]=='/') {
 		path[strlen(path)-1] = '\0';
-		return mkdirr(path);
+		return mkdirrr(parent_dir, path);
 	}
-	// 마지막 '/'를 기준으로 path와 new_dir로 잘라서, 
-	*ptr_slash = '\0';
-	char* new_dir = ptr_slash + 1;
+	// 여기까지 온 name은 시작과 끝에 '/'를 가질 수 없음
 
-	// 앞에 path가 empty string이면 dir_add(root, new_dir)
-	if (path=="") {
-		return dir_add(dir_open_root(), new_dir, cluster_to_sector(fat_create_chain(0)));
-	}
+	char* ptr_slash = strrchr(path, '/'); // path 뒤에서부터 '/'의 인덱스를 찾음
 	
-	// 나머지는 dir_add(path, new_dir)
-	struct inode* inode = NULL;
-	if (!dir_lookup(thread_current()->curr_dir, path, &inode) || inode==NULL) {
+	// path의 중간에 '/'가 있는 경우. 없으면 지금 dir에 그대로 add하면 됨
+	if (ptr_slash!=NULL) {
+		// 마지막 '/'를 기준으로 path와 new_dir로 잘라서, 
+		*ptr_slash = '\0';
+		char* new_dir = ptr_slash + 1;
+		ASSERT(path!="");
+		// 지금 dir에서 타고 들어간 path를 찾아 들어가고
+		struct inode* inode = NULL;
+		if (!dir_lookup(thread_current()->curr_dir, path, &inode) || inode==NULL) {
+			return false;
+		}
+		// 거기서 new_dir을 만들도록 다시 call
+		mkdirrr(dir_reopen(inode), new_dir);
+	}
+
+	// 지금 dir에 path(name) 그대로 add
+	disk_sector_t child_sector = cluster_to_sector(fat_create_chain(0));
+	if (!dir_create(child_sector, 2)) { // 일단 .과 ..이 들어갈 entry 두 개만 할당
 		return false;
 	}
-	return dir_add(dir_open(inode), new_dir, cluster_to_sector(fat_create_chain(0)));
+	struct dir* child_dir = dir_open(inode_open(child_sector));
 	
+	return child_dir!=NULL &&
+		dir_add(parent_dir, name, child_sector) &&
+		dir_add(child_dir, '.', child_sector) &&
+		dir_add(child_dir, '..', parent_dir->inode->sector);
+}
+
+bool mkdirr(const char *path) {
+	return mkdirrr(thread_current()->curr_dir, path);
 };
 bool readdirr(int fd, char name[READDIR_MAX_LEN + 1]) {
 	return false;

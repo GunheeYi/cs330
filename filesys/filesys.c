@@ -78,7 +78,7 @@ filesys_create (const char *name, off_t initial_size) {
 	
 	bool success = (dir != NULL
 			&& inode_create (inode_sector, initial_size, INODE_FILE)
-			&& dir_add (dir, name, inode_sector)); // ???? TODO: dir_add는 name을 파싱할 능력이 없음
+			&& dir_add (dir, name, inode_sector));
 
 	if (!success) {
 		fat_remove_chain(clst, 0);
