@@ -14,7 +14,8 @@
         "stdio.h": "c",
         "thread.h": "c",
         "directory.h": "c",
-        "lib.h": "c"
+        "lib.h": "c",
+        "vector": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

@@ -12,6 +12,70 @@ struct dir_entry {
 	bool in_use;                        /* In use or free? */
 };
 
+// path string을 받아 (상위 directory)/(directory 혹은 파일)로 나누고,
+// current directory에서 (상위 directory)로 타고 들어간 결과를 parsed_dir에, (directory 혹은 파일) string을 name에 씀
+bool dir_parse(struct dir* current_dir, const char* path_, struct dir** parsed_dir, char** name) {
+	ASSERT(current_dir!=NULL);
+	if (path_[0]=='\0') return false;
+	if (path_[0]=='/') {
+		return dir_parse(dir_open_root(), path_+1, parsed_dir, name);
+	}
+	char* path = malloc(sizeof(char)*PATH_MAX);
+	strlcpy(path, path_, strlen(path_)+1);
+	if (path[strlen(path)-1]=='/') {
+		path[strlen(path)-1] = '\0';
+		return dir_parse(current_dir, path, parsed_dir, name);
+	}
+	// 여기까지 온 path는 시작과 끝에 '/'를 가질 수 없음
+
+	char* ptr_slash = strrchr(path, '/'); // path 뒤에서부터 '/'의 인덱스를 찾음
+	
+	// path의 중간에 '/'가 있는 경우.
+	if (ptr_slash!=NULL) {
+		// 마지막 '/'를 기준으로 path와 path_last로 잘라서, 
+		*ptr_slash = '\0';
+		char* path_last = ptr_slash + 1;
+		ASSERT(path[0]!='\0');
+		// current_dir에서 path를 찾아 들어가고
+		struct inode* inode = NULL;
+		if (!dir_lookup(current_dir, path, &inode) || inode==NULL) {
+			return false;
+		}
+		// 다시 call
+		return dir_parse(dir_open(inode), path_last, parsed_dir, name);
+	}
+	*parsed_dir = current_dir;
+	*name = path;
+	return true;
+}
+
+// dir 혹은 그 상위 directory들이 remove되었는지 확인함
+bool dir_removed(struct dir* dir) {
+	struct dir* child_dir = dir_reopen(dir);
+	while (child_dir->inode->sector!=cluster_to_sector(ROOT_DIR_CLUSTER)) {
+		struct inode** inode;
+		ASSERT(dir_lookup(child_dir, "..", &inode));
+		struct dir* parent_dir = dir_open(inode);
+		struct dir_entry e;
+		bool found = false;
+		for (off_t ofs = 0; inode_read_at (parent_dir->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e) {
+			if (e.inode_sector==child_dir->inode->sector) {
+				found = true;
+				dir_close(child_dir);
+				if (!e.in_use) {
+					dir_close(parent_dir);
+					return true;
+				}
+				child_dir = parent_dir;
+				break;
+			}
+		}
+		ASSERT(found);
+	}
+	dir_close(child_dir);
+	return false;
+}
+
 /* Creates a directory with space for ENTRY_CNT entries in the
  * given SECTOR.  Returns true if successful, false on failure. */
 bool
@@ -106,8 +170,7 @@ dir_lookup (const struct dir *dir, const char *name,
 
 	ASSERT (dir != NULL);
 	ASSERT (name != NULL);
-
-	if (name=="") { // necessary?
+	if (name[0]=='\0') {
 		*inode = dir->inode;
 		return *inode!=NULL;
 	}
@@ -128,16 +191,18 @@ dir_lookup (const struct dir *dir, const char *name,
 	}
 
 	// name is "a" or "a/"
-	if (ptr_slash==NULL || name_last=="") {
-		if (lookup (dir, name_first, &e, NULL)) {
-			*inode = inode_open (e.inode_sector);
-		} else {
-			*inode = NULL;
+	if (ptr_slash==NULL || name_last[0]=='\0') {
+		if (!lookup (dir, name_first, &e, NULL)) {
+			*inode = NULL; // necessary?
+			return false;
 		}
+		ASSERT(e.in_use);
+		*inode = inode_open (e.inode_sector);
+
 		return *inode != NULL;
 	}
 
-	ASSERT(name_first!="");
+	ASSERT(name_first[0]!='\0');
 
 	// name is "a/b"
 	struct inode *inode_child = NULL;
@@ -218,6 +283,18 @@ dir_remove (struct dir *dir, const char *name) {
 	inode = inode_open (e.inode_sector);
 	if (inode == NULL)
 		goto done;
+	
+	/* Fail if entry exists, only when removing a directory */
+	if (inode->data.type==INODE_DIR) {
+		struct dir* dir_to_remove = dir_open(inode);
+		char entry_name[READDIR_MAX_LEN + 1];
+		bool has_entry = dir_readdir(dir_to_remove, entry_name);
+		dir_close(dir_to_remove);
+		if (has_entry) {
+			goto done;
+		}
+	}
+	
 
 	/* Erase directory entry. */
 	e.in_use = false;
@@ -242,7 +319,7 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1]) {
 
 	while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) {
 		dir->pos += sizeof e;
-		if (e.in_use) {
+		if (strcmp(e.name, ".") && strcmp(e.name, "..") && e.in_use) {
 			strlcpy (name, e.name, NAME_MAX + 1);
 			return true;
 		}

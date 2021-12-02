@@ -64,7 +64,7 @@ filesys_done (void) {
  * Fails if a file named NAME already exists,
  * or if internal memory allocation fails. */
 bool
-filesys_create (const char *name, off_t initial_size) {
+filesys_create (const char *path, off_t initial_size) {
 	disk_sector_t inode_sector = 0;
 #ifdef EFILESYS
 	struct dir *dir = dir_reopen(thread_current()->curr_dir);
@@ -72,33 +72,31 @@ filesys_create (const char *name, off_t initial_size) {
 	struct dir *dir = dir_open_root();
 #endif
 #ifdef EFILESYS
+	if (dir==NULL) {
+		return false;
+	}
+
+	struct dir* parent_dir;
+	char* name = malloc(sizeof(char)*(NAME_MAX));
+	if (strchr(path, '/')==NULL) {
+		parent_dir = dir_reopen(dir);
+		strlcpy(name, path, strlen(path)+1);
+	} else if (!dir_parse(dir, path, &parent_dir, &name)) {
+		return false;
+	}
+
 	cluster_t clst = fat_create_chain(0);
-	
 	inode_sector = cluster_to_sector(clst);
-	char* path = malloc(sizeof(char)*PATH_MAX);
-	strlcpy(path, name, strlen(name)+1);
-	if (path[strlen(path)-1]=='/') {
-		path[strlen(path)-1] = '\0';
-	}
-	char* ptr_slash = strrchr(path, '/');
-	if (ptr_slash!=NULL) {
-		*ptr_slash = '\0';
-		struct inode* inode = NULL;
-		if (!dir_lookup(thread_current()->curr_dir, path, &inode) || inode==NULL) {
-			return false;
-		}
-		// dir_close(dir); ?
-		dir = dir_open(inode);
-		path = ptr_slash + 1;
-		ASSERT(path!="");
-	}
-	bool success = (dir != NULL
+	
+	bool success = ( !dir_removed(parent_dir)
 			&& inode_create (inode_sector, initial_size, INODE_FILE)
-			&& dir_add (dir, path, inode_sector));
+			&& dir_add (parent_dir, name, inode_sector) );
 	if (!success) {
 		fat_remove_chain(clst, 0);
 	}
 
+	dir_close(parent_dir);
+	
 #else
 	bool success = (dir != NULL
 			&& free_map_allocate (1, &inode_sector)
@@ -119,20 +117,17 @@ filesys_create (const char *name, off_t initial_size) {
 void*
 filesys_open (const char *name, bool* is_dir) {
 #ifdef EFILESYS
-	if (thread_current()->curr_dir == NULL){
-		ASSERT(0);
-	}
-	ASSERT(thread_current()->curr_dir!=NULL); // ??
 	struct dir *dir = dir_reopen(thread_current()->curr_dir); 
 #else
 	struct dir *dir = dir_open_root();
 #endif
-	struct inode *inode = NULL;
+	struct inode *inode = NULL;	
 
-	if (dir != NULL) {
-		if (!dir_lookup (dir, name, &inode)) {
-			return NULL;
-		}
+	if (dir==NULL
+		|| !dir_lookup (dir, name, &inode)
+		|| dir_removed(dir)
+	) {
+		return NULL;
 	}
 
 	dir_close (dir); // ??? - reopen해줬으니 닫는게 맞을 듯
@@ -152,13 +147,21 @@ filesys_open (const char *name, bool* is_dir) {
  * Fails if no file named NAME exists,
  * or if an internal memory allocation fails. */
 bool
-filesys_remove (const char *name) {
+filesys_remove (const char *path) {
 #ifdef EFILESYS
 	struct dir *dir = dir_reopen(thread_current()->curr_dir);
 #else
 	struct dir *dir = dir_open_root();
 #endif
-	bool success = dir != NULL && dir_remove (dir, name);
+	if (dir==NULL) {
+		return false;
+	}
+	struct dir* parent_dir;
+	char* name = malloc(sizeof(char)*(NAME_MAX));
+	if (!dir_parse(dir, path, &parent_dir, &name)) {
+		return false;
+	}
+	bool success = dir_remove (parent_dir, name);
 	dir_close (dir);
 
 	return success;

@@ -1,3 +1,5 @@
+#define EFILESYS
+
 #ifndef FILESYS_DIRECTORY_H
 #define FILESYS_DIRECTORY_H
 
@@ -8,6 +10,7 @@
 #ifdef EFILESYS
 	#include "threads/thread.h"
 	#include "filesys/fat.h"
+	#include "lib/user/syscall.h"
 #endif
 
 /* Maximum length of a file name component.
@@ -24,6 +27,8 @@ struct dir {
 	struct inode *inode;                /* Backing store. */
 	off_t pos;                          /* Current position. */
 };
+
+bool dir_parse(struct dir* current_dir, const char* path_, struct dir** parsed_dir, char** name);
 
 /* Opening and closing directories. */
 bool dir_create (disk_sector_t sector, size_t entry_cnt);
