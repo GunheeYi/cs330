@@ -167,14 +167,12 @@ bool
 dir_lookup (const struct dir *dir, const char *name,
 		struct inode **inode) {
 	struct dir_entry e;
-
 	ASSERT (dir != NULL);
 	ASSERT (name != NULL);
 	if (name[0]=='\0') {
 		*inode = dir->inode;
 		return *inode!=NULL;
 	}
-
 	// name is "/" or "/~"
 	if (name[0]=='/') {
 		return dir_lookup(dir_open_root(), name+1, inode);
@@ -183,30 +181,34 @@ dir_lookup (const struct dir *dir, const char *name,
 	// char name_first[PATH_MAX];
 	char* name_first = malloc(sizeof(char)*PATH_MAX); // free on where ????
 	strlcpy(name_first, name, strlen(name)+1);
-	char* ptr_slash = strchr(name_first, '/');
-	char* name_last = "";
-	if (ptr_slash!=NULL) {
-		name_last = (ptr_slash-name_first) + 1;
-		name_last[-1] = '\0';
+
+	if (name_first[strlen(name_first)-1]=='/') {
+		name_first[strlen(name_first)-1] ='\0';
+		return dir_lookup(dir, name_first, inode);
 	}
 
-	// name is "a" or "a/"
-	if (ptr_slash==NULL || name_last[0]=='\0') {
+	char* ptr_slash = strchr(name_first, '/');
+
+	if (ptr_slash==NULL) {
 		if (!lookup (dir, name_first, &e, NULL)) {
 			*inode = NULL; // necessary?
 			return false;
 		}
 		ASSERT(e.in_use);
 		*inode = inode_open (e.inode_sector);
-
 		return *inode != NULL;
 	}
+
+	*ptr_slash = '\0';
+	char* name_last = ptr_slash + 1;
+	
+	// name is "a" or "a/"
 
 	ASSERT(name_first[0]!='\0');
 
 	// name is "a/b"
 	struct inode *inode_child = NULL;
-	if (dir_lookup (dir, name_first, &inode_child)) {
+	if (!dir_lookup (dir, name_first, &inode_child)) {
 		return false;
 	}
 	struct dir* dir_child;
