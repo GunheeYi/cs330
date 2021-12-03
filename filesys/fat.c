@@ -173,16 +173,19 @@ cluster_t fat_find_empty() {
 	return 0;
 }
 
-size_t fat_find_empty_num() {
+bool fat_enough_space(size_t need) {
 	cluster_t i = 1;
 	size_t num = 0;
 	while(i < fat_fs->fat_length) {
+		if (num >= need) {
+			return true;
+		}
 		if (fat_get(i)==0) {
 			num++;
 		}
 		i++;
 	}
-	return num;
+	return false;
 }
 
 /* Add a cluster to the chain.

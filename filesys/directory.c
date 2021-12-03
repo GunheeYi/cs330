@@ -4,6 +4,10 @@
 #include <list.h>
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
+#ifdef EFILESYS
+	#include "filesys/fat.h"
+	#include "lib/user/syscall.h"
+#endif
 
 /* A single directory entry. */
 struct dir_entry {
@@ -80,7 +84,7 @@ bool dir_removed(struct dir* dir) {
  * given SECTOR.  Returns true if successful, false on failure. */
 bool
 dir_create (disk_sector_t sector, size_t entry_cnt) {
-	return inode_create (sector, entry_cnt * sizeof (struct dir_entry), INODE_DIR);
+	return inode_create (sector, entry_cnt * sizeof (struct dir_entry), NULL, INODE_DIR);
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -196,6 +200,9 @@ dir_lookup (const struct dir *dir, const char *name,
 		}
 		ASSERT(e.in_use);
 		*inode = inode_open (e.inode_sector);
+		if ((*inode)->data.type==INODE_LINK) {
+			return dir_lookup(dir, (*inode)->data.target, inode);
+		}
 		return *inode != NULL;
 	}
 

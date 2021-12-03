@@ -121,9 +121,11 @@ int openn(const char *path) {
 	if ( path[0]==NULL ) return -1; // empty file
 
 	lock_acquire(&lock_file);
-	bool is_dir;
-	void* fdp = filesys_open(path, &is_dir); // file pointer or directory pointer
+	enum inode_type type;
+	void* fdp = filesys_open(path, &type); // file pointer or directory pointer
 	lock_release(&lock_file);
+
+	ASSERT(type!=INODE_LINK);
 	
 	if (fdp==NULL) {
 		// lock_release(&lock_file);
@@ -145,7 +147,7 @@ int openn(const char *path) {
 	}
 	new_file_map->fd = curr->fd_next;
 	new_file_map->fdp = fdp;
-	new_file_map->is_dir = is_dir;
+	new_file_map->type = type;
 	new_file_map->copied_fd = -1;
 	new_file_map->file_exists = true;
 	list_push_back(&curr->fm_list, &new_file_map->elem);
@@ -222,7 +224,7 @@ int writee(int fd, const void *buffer, unsigned size) {
 	}
 	else { // file
 		struct fm* fm = get_fm(fd);
-		if ( fm==NULL || fm->is_dir ) return -1; // fd has not been issued(bad), or it points to a directory
+		if ( fm==NULL || fm->type!=INODE_FILE ) return -1; // fd has not been issued(bad), or it points to a directory
 		lock_acquire(&lock_file);
 		int size_wrote = file_write(fm->fdp, buffer, size);
 		lock_release(&lock_file);
@@ -315,15 +317,16 @@ bool mkdirr(const char* path) {
 
 bool readdirr(int fd, char* name) {
 	struct fm* fm = get_fm(fd);
-	ASSERT(fm!=NULL && fm->is_dir && fm->fdp!=NULL);
+	ASSERT(fm!=NULL && fm->type==INODE_DIR && fm->fdp!=NULL);
 	return dir_readdir((struct dir*)fm->fdp, name);
 };
 bool isdirr(int fd) {
-	return get_fm(fd)->is_dir;
+	return get_fm(fd)->type==INODE_DIR;
 };
 int inumberr(int fd) {
 	struct fm* fm = get_fm(fd);
-	if (fm->is_dir) {
+	ASSERT(fm->type!=INODE_LINK);
+	if (fm->type==INODE_DIR) {
 		return ((struct dir*)(fm->fdp))->inode->sector;
 	}
 	return ((struct file*)(fm->fdp))->inode->sector;
@@ -341,10 +344,11 @@ int symlinkk (const char* target, const char* linkpath) {
 		return -1;
 	}
 
-	struct inode* inode;
+	disk_sector_t sector = cluster_to_sector(fat_create_chain(0));
+
 	if (
-		!dir_lookup(dir, target, &inode)
-		|| !dir_add(parent_dir, name, inode->sector)
+		!inode_create(sector, 0, target, INODE_LINK)
+		|| !dir_add(parent_dir, name, sector)
 	) {
 		return -1;
 	}

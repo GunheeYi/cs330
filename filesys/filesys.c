@@ -7,10 +7,6 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "devices/disk.h"
-#ifdef EFILESYS
-	#include "filesys/fat.h"
-	#include "threads/thread.h"
-#endif
 
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
@@ -90,7 +86,7 @@ filesys_create (const char *path, off_t initial_size) {
 	inode_sector = cluster_to_sector(clst);
 	
 	bool success = ( !dir_removed(parent_dir)
-			&& inode_create (inode_sector, initial_size, INODE_FILE)
+			&& inode_create (inode_sector, initial_size, NULL, INODE_FILE)
 			&& dir_add (parent_dir, name, inode_sector) );
 	if (!success) {
 		fat_remove_chain(clst, 0);
@@ -117,8 +113,7 @@ filesys_create (const char *path, off_t initial_size) {
  * otherwise.
  * Fails if no file named NAME exists,
  * or if an internal memory allocation fails. */
-void*
-filesys_open (const char *name, bool* is_dir) {
+void* filesys_open (const char *name, enum inode_type* type) {
 #ifdef EFILESYS
 	struct dir *dir = dir_reopen(thread_current()->curr_dir); 
 #else
@@ -134,15 +129,20 @@ filesys_open (const char *name, bool* is_dir) {
 	}
 
 	dir_close (dir); // ??? - reopen해줬으니 닫는게 맞을 듯
+	if (inode->data.type==INODE_LINK) {
+		return filesys_open(inode->data.target, type);
+	}
 
 	// dir_lookup이 실패한 경우에 대한 handling은 필요 없나?
 	
 	// inode type에 따라 적합한 open()을 부르고 void*에 cast함
-	bool is_dir_ = (inode->data.type==INODE_DIR);
-	if (is_dir!=NULL) {
-		*is_dir = is_dir_;
+	enum inode_type type_ = inode->data.type;
+	if (type!=NULL) {
+		*type = type_;
 	}
-	return (void*) (is_dir_ ? dir_open(inode) : file_open (inode));
+
+
+	return (type_==INODE_DIR ? (void*) dir_open(inode) : (void*) file_open (inode));
 }
 
 /* Deletes the file named NAME.

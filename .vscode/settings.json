@@ -15,7 +15,9 @@
         "thread.h": "c",
         "directory.h": "c",
         "lib.h": "c",
-        "vector": "c"
+        "vector": "c",
+        "filesys.h": "c",
+        "syscall.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

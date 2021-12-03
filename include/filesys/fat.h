@@ -37,6 +37,6 @@ disk_sector_t cluster_to_sector (cluster_t clst);
 cluster_t sector_to_cluster (disk_sector_t sect);
 
 cluster_t fat_find_empty();
-size_t fat_find_empty_num();
+bool fat_enough_space(size_t need);
 
 #endif /* filesys/fat.h */

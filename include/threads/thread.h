@@ -9,6 +9,9 @@
 #ifdef VM
 #include "vm/vm.h"
 #endif
+#ifdef EFILESYS
+	#include "filesys/inode.h"
+#endif
 
 /* States in a thread's life cycle. */
 enum thread_status {
@@ -34,7 +37,7 @@ typedef int tid_t;
 struct fm {
     int fd;
 	void* fdp;
-	bool is_dir;
+	enum inode_type type;
     struct list_elem elem;
 	int copied_fd;
 	bool file_exists;

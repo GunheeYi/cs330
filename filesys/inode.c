@@ -48,7 +48,7 @@ inode_init (void) {
  * Returns true if successful.
  * Returns false if memory or disk allocation fails. */
 bool
-inode_create (disk_sector_t sector, off_t length, enum inode_type type) {
+inode_create (disk_sector_t sector, off_t length, const char* target, enum inode_type type) {
 	struct inode_disk *disk_inode = NULL;
 	bool success = false;
 
@@ -61,28 +61,35 @@ inode_create (disk_sector_t sector, off_t length, enum inode_type type) {
 #ifdef EFILESYS
 	disk_inode = calloc (1, sizeof *disk_inode);
 	if (disk_inode != NULL) {
-		size_t sectors = bytes_to_sectors (length);
-		sectors = sectors==0 ? 1 : sectors;
-		disk_inode->length = length;
-		disk_inode->magic = INODE_MAGIC;
 		disk_inode->type = type;
-		if (fat_find_empty_num() > sectors){
-			if (sectors > 0) {			
-				static char zeros[DISK_SECTOR_SIZE];
-				size_t i;
-				cluster_t tmp = fat_create_chain(0);
-				disk_inode->start = cluster_to_sector(tmp);
-				
-				disk_write (filesys_disk, sector, disk_inode);
+		if (type==INODE_LINK) {
+			strlcpy(disk_inode->target, target, PATH_MAX);
+			disk_write(filesys_disk, sector, disk_inode);
+			success = true;
+		} else {
+			size_t sectors = bytes_to_sectors (length);
+			sectors = sectors==0 ? 1 : sectors;
+			disk_inode->length = length;
+			disk_inode->magic = INODE_MAGIC;
+			if (fat_enough_space(sectors)){
+				if (sectors > 0) {			
+					static char zeros[DISK_SECTOR_SIZE];
+					size_t i;
+					cluster_t tmp = fat_create_chain(0);
+					disk_inode->start = cluster_to_sector(tmp);
+					
+					disk_write (filesys_disk, sector, disk_inode);
 
-				disk_write (filesys_disk, cluster_to_sector(tmp), zeros);
-				for (i = 1; i < sectors; i++){
-					tmp = fat_create_chain(tmp);
-					disk_write (filesys_disk, cluster_to_sector(tmp), zeros); 
+					disk_write (filesys_disk, cluster_to_sector(tmp), zeros);
+					for (i = 1; i < sectors; i++){
+						tmp = fat_create_chain(tmp);
+						disk_write (filesys_disk, cluster_to_sector(tmp), zeros); 
+					}
 				}
-			}
-			success = true; 
-		} 
+				success = true; 
+			} 
+		}
+		
 		free (disk_inode);
 		
 	}
@@ -176,9 +183,10 @@ inode_close (struct inode *inode) {
 		/* Deallocate blocks if removed. */
 		if (inode->removed) {
 #ifdef EFILESYS	
-			// ???????????????
 			fat_remove_chain(sector_to_cluster(inode->sector), 0);
-			fat_remove_chain(sector_to_cluster(inode->data.start), 0);
+			if (inode->data.type!=INODE_LINK) {
+				fat_remove_chain(sector_to_cluster(inode->data.start), 0);
+			}
 #else
 			free_map_release (inode->sector, 1);
 			free_map_release (inode->data.start,

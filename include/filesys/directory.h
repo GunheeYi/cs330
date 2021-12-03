@@ -7,18 +7,13 @@
 #include <stddef.h>
 #include "devices/disk.h"
 #include "filesys/inode.h"
-#ifdef EFILESYS
-	#include "threads/thread.h"
-	#include "filesys/fat.h"
-	#include "lib/user/syscall.h"
-#endif
 
 /* Maximum length of a file name component.
  * This is the traditional UNIX maximum length.
  * After directories are implemented, this maximum length may be
  * retained, but much longer full path names must be allowed. */
 #define NAME_MAX 14
-#define PATH_MAX 1024
+#define PATH_MAX 124 * sizeof(uint32_t) / sizeof(char)
 
 struct inode;
 
@@ -29,6 +24,7 @@ struct dir {
 };
 
 bool dir_parse(struct dir* current_dir, const char* path_, struct dir** parsed_dir, char** name);
+bool dir_removed(struct dir* dir);
 
 /* Opening and closing directories. */
 bool dir_create (disk_sector_t sector, size_t entry_cnt);
