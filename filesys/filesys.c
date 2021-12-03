@@ -36,6 +36,7 @@ filesys_init (bool format) {
 	fat_open ();
 
 	thread_current()->curr_dir = dir_open_root();
+	dir_add(thread_current()->curr_dir, ".", cluster_to_sector(ROOT_DIR_CLUSTER));
 #else
 	/* Original FS */
 	free_map_init ();
@@ -95,7 +96,9 @@ filesys_create (const char *path, off_t initial_size) {
 		fat_remove_chain(clst, 0);
 	}
 
-	dir_close(parent_dir);
+	if (parent_dir!=dir) {
+		dir_close(parent_dir);
+	}
 	
 #else
 	bool success = (dir != NULL
@@ -162,6 +165,9 @@ filesys_remove (const char *path) {
 		return false;
 	}
 	bool success = dir_remove (parent_dir, name);
+	if (parent_dir!=dir) {
+		dir_close(parent_dir);
+	}
 	dir_close (dir);
 
 	return success;

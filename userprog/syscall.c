@@ -78,7 +78,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_READDIR: f->R.rax = readdirr((int) a1, (char) a2); break;
 		case SYS_ISDIR: f->R.rax = isdirr((int) a1); break;
 		case SYS_INUMBER: f->R.rax = inumberr((int) a1); break;
-		// case SYS_SYMLINK: symlinkk(); break;
+		case SYS_SYMLINK: f->R.rax = symlinkk((const char*) a1, (const char*) a2); break;
 		// case SYS_MOUNT: mountt(); break;
 		// case SYS_UMOUNT: umountt(); break;
 	}
@@ -300,13 +300,20 @@ bool mkdirr(const char* path) {
 	}
 	struct dir* child_dir = dir_open(inode_open(child_sector));
 
-	return child_dir!=NULL &&
+	bool success = child_dir!=NULL &&
 		dir_add(parent_dir, name, child_sector) &&
 		dir_add(child_dir, ".", child_sector) &&
 		dir_add(child_dir, "..", parent_dir->inode->sector);
+	
+	if (parent_dir!=thread_current()->curr_dir) {
+		dir_close(parent_dir);
+	}
+	dir_close(child_dir);
+
+	return success;
 };
 
-bool readdirr(int fd, char name[READDIR_MAX_LEN + 1]) {
+bool readdirr(int fd, char* name) {
 	struct fm* fm = get_fm(fd);
 	ASSERT(fm!=NULL && fm->is_dir && fm->fdp!=NULL);
 	return dir_readdir((struct dir*)fm->fdp, name);
@@ -318,9 +325,36 @@ int inumberr(int fd) {
 	struct fm* fm = get_fm(fd);
 	if (fm->is_dir) {
 		return ((struct dir*)(fm->fdp))->inode->sector;
-	} else {
-		return ((struct file*)(fm->fdp))->inode->sector;
 	}
+	return ((struct file*)(fm->fdp))->inode->sector;
+};
+
+int symlinkk (const char* target, const char* linkpath) {
+	struct dir *dir = dir_reopen(thread_current()->curr_dir);
+	if (dir==NULL) {
+		return -1;
+	}
+	struct dir* parent_dir;
+	char* name = malloc(sizeof(char)*(NAME_MAX));
+	if (!dir_parse(dir, linkpath, &parent_dir, &name)) {
+		free(name);
+		return -1;
+	}
+
+	struct inode* inode;
+	if (
+		!dir_lookup(dir, target, &inode)
+		|| !dir_add(parent_dir, name, inode->sector)
+	) {
+		return -1;
+	}
+
+	if (parent_dir!=dir) {
+		dir_close(parent_dir);
+	}
+	dir_close(dir);
+
+	return 0;
 };
 #endif
 

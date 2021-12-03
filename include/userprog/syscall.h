@@ -35,7 +35,7 @@ bool mkdirr(const char *dir);
 bool readdirr(int fd, char name[READDIR_MAX_LEN + 1]);
 bool isdirr(int fd);
 int inumberr(int fd);
-// int symlinkk();
+int symlinkk (const char* target, const char* linkpath);
 // int mountt();
 // int umountt();
 
