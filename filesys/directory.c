@@ -53,31 +53,22 @@ bool dir_parse(struct dir* current_dir, const char* path_, struct dir** parsed_d
 	return true;
 }
 
-// dir 혹은 그 상위 directory들이 remove되었는지 확인함
+// dir이 remove되었는지 확인함
 bool dir_removed(struct dir* dir) {
-	struct dir* child_dir = dir_reopen(dir);
-	while (child_dir->inode->sector!=cluster_to_sector(ROOT_DIR_CLUSTER)) {
-		struct inode** inode;
-		ASSERT(dir_lookup(child_dir, "..", &inode));
-		struct dir* parent_dir = dir_open(inode);
-		struct dir_entry e;
-		bool found = false;
-		for (off_t ofs = 0; inode_read_at (parent_dir->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e) {
-			if (e.inode_sector==child_dir->inode->sector) {
-				found = true;
-				dir_close(child_dir);
-				if (!e.in_use) {
-					dir_close(parent_dir);
-					return true;
-				}
-				child_dir = parent_dir;
-				break;
-			}
-		}
-		ASSERT(found);
+	if (dir->inode->sector==cluster_to_sector(ROOT_DIR_CLUSTER)) {
+		return false;
 	}
-	dir_close(child_dir);
-	return false;
+	struct inode** inode;
+	ASSERT(dir_lookup(dir, "..", &inode));
+	struct dir* parent_dir = dir_open(inode);
+	struct dir_entry e;
+	for (off_t ofs = 0; inode_read_at (parent_dir->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e) {
+		if (e.inode_sector==dir->inode->sector) {
+			dir_close(parent_dir);
+			return !e.in_use;
+		}
+	}
+	NOT_REACHED();
 }
 
 /* Creates a directory with space for ENTRY_CNT entries in the
@@ -223,9 +214,6 @@ dir_lookup (const struct dir *dir, const char *name,
 		return false;
 	}
 	return dir_lookup(dir_child, name_last, inode);
-
-	// Symlink, soft link..?
-	
 }
 
 /* Adds a file named NAME to DIR, which must not already contain a

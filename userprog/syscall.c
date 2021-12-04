@@ -75,7 +75,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_MUNMAP: munmapp((void*) a1); break;
 		case SYS_CHDIR: f->R.rax = chdirr((const char*) a1); break;
 		case SYS_MKDIR: f->R.rax = mkdirr((const char*) a1); break;
-		case SYS_READDIR: f->R.rax = readdirr((int) a1, (char) a2); break;
+		case SYS_READDIR: f->R.rax = readdirr((int) a1, (char *) a2); break;
 		case SYS_ISDIR: f->R.rax = isdirr((int) a1); break;
 		case SYS_INUMBER: f->R.rax = inumberr((int) a1); break;
 		case SYS_SYMLINK: f->R.rax = symlinkk((const char*) a1, (const char*) a2); break;
@@ -296,7 +296,11 @@ bool mkdirr(const char* path) {
 	if (name=="." || name=="..") { // cannot make directory named "." or ".."
 		return false;
 	}
-	disk_sector_t child_sector = cluster_to_sector(fat_create_chain(0));
+	cluster_t tmp = fat_create_chain(0);
+	if (tmp==0) {
+		return false;
+	}
+	disk_sector_t child_sector = cluster_to_sector(tmp);
 	if (!dir_create(child_sector, 16)) { // 일단 .과 ..이 들어갈 entry 두 개만 할당 (???)
 		return false;
 	}
@@ -344,7 +348,11 @@ int symlinkk (const char* target, const char* linkpath) {
 		return -1;
 	}
 
-	disk_sector_t sector = cluster_to_sector(fat_create_chain(0));
+	cluster_t tmp = fat_create_chain(0);
+	if (tmp==0) {
+		return false;
+	}
+	disk_sector_t sector = cluster_to_sector(tmp);
 
 	if (
 		!inode_create(sector, 0, target, INODE_LINK)

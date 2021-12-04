@@ -76,6 +76,9 @@ inode_create (disk_sector_t sector, off_t length, const char* target, enum inode
 					static char zeros[DISK_SECTOR_SIZE];
 					size_t i;
 					cluster_t tmp = fat_create_chain(0);
+					if (tmp==0) {
+						return false;
+					}
 					disk_inode->start = cluster_to_sector(tmp);
 					
 					disk_write (filesys_disk, sector, disk_inode);
@@ -83,6 +86,9 @@ inode_create (disk_sector_t sector, off_t length, const char* target, enum inode
 					disk_write (filesys_disk, cluster_to_sector(tmp), zeros);
 					for (i = 1; i < sectors; i++){
 						tmp = fat_create_chain(tmp);
+						if (tmp==0) {
+							return false;
+						}
 						disk_write (filesys_disk, cluster_to_sector(tmp), zeros); 
 					}
 				}
@@ -298,6 +304,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 		tmp = fat_get(old);
 		if (tmp==EOChain) {
 			tmp = fat_create_chain(old);
+			if (tmp==0) {
+				return 0;
+			}
 			static char zeros[DISK_SECTOR_SIZE];
 			disk_write(filesys_disk, cluster_to_sector(tmp), zeros);
 		}
@@ -312,6 +321,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 		tmp = fat_get(old);
 		if (tmp==EOChain) {
 			tmp = fat_create_chain(old);
+			if (tmp==0) {
+				return 0;
+			}
 			static char zeros[DISK_SECTOR_SIZE];
 			disk_write(filesys_disk, cluster_to_sector(tmp), zeros);
 		}

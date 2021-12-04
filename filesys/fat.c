@@ -153,7 +153,8 @@ fat_boot_create (void) {
 void
 fat_fs_init (void) {
 	/* TODO: Your code goes here. */
-	fat_fs->fat_length = fat_fs->bs.fat_sectors * DISK_SECTOR_SIZE / sizeof(cluster_t);
+	// fat_fs->fat_length = fat_fs->bs.fat_sectors * DISK_SECTOR_SIZE / (sizeof(cluster_t) * SECTORS_PER_CLUSTER);
+	fat_fs->fat_length = (fat_fs->bs.total_sectors - fat_fs->bs.fat_sectors) / SECTORS_PER_CLUSTER;
 	fat_fs->data_start = fat_fs->bs.fat_start + fat_fs->bs.fat_sectors; // in sectors
 }
 
@@ -169,7 +170,6 @@ cluster_t fat_find_empty() {
 		}
 		i++;
 	}
-	
 	return 0;
 }
 
@@ -196,7 +196,7 @@ fat_create_chain (cluster_t clst) {
 	/* TODO: Your code goes here. */
 	cluster_t new = fat_find_empty();
 	if (new==0) {
-		PANIC("No empty space in filesys.");
+		return 0;
 	}
 
 	fat_put(new, EOChain);

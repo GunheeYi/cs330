@@ -19,7 +19,7 @@ test_main (void)
   int i;
 
   msg ("creating many levels of files and directories...");
-  // quiet = true;
+  quiet = true;
   CHECK (mkdir ("start"), "mkdir \"start\"");
   CHECK (chdir ("start"), "chdir \"start\"");
   for (i = 0; ; i++) 
@@ -53,16 +53,9 @@ test_main (void)
 
       /* Check for file and directory. */
       CHECK ((fd = open (".")) > 1, "open \".\"");
-      printf("dir-vine: 1\n");
-      printf("=============%s\n", name[0]);
-      name[0][0] = "@";
-      printf("=============%c\n", name[0]);
       CHECK (readdir (fd, name[0]), "readdir \".\"");
-      printf("dir-vine: 2\n");
       CHECK (readdir (fd, name[1]), "readdir \".\"");
-      printf("dir-vine: 3\n");
       CHECK (!readdir (fd, name[2]), "readdir \".\" (should fail)");
-      printf("dir-vine: 4\n");
       CHECK ((!strcmp (name[0], dir_name) && !strcmp (name[1], file_name))
              || (!strcmp (name[1], dir_name) && !strcmp (name[0], file_name)),
              "names should be \"%s\" and \"%s\", "

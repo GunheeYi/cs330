@@ -83,6 +83,9 @@ filesys_create (const char *path, off_t initial_size) {
 	}
 
 	cluster_t clst = fat_create_chain(0);
+	if (clst==0) {
+		return false;
+	}
 	inode_sector = cluster_to_sector(clst);
 	
 	bool success = ( !dir_removed(parent_dir)

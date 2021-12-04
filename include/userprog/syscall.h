@@ -32,7 +32,7 @@ void* mmapp(void *addr, size_t length, int writable, int fd, off_t offset);
 void munmapp(void *addr);
 bool chdirr(const char *dir);
 bool mkdirr(const char *dir);
-bool readdirr(int fd, char name[READDIR_MAX_LEN + 1]);
+bool readdirr(int fd, char* name);
 bool isdirr(int fd);
 int inumberr(int fd);
 int symlinkk (const char* target, const char* linkpath);
