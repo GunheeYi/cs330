@@ -17,7 +17,10 @@
         "lib.h": "c",
         "vector": "c",
         "filesys.h": "c",
-        "syscall.h": "c"
+        "syscall.h": "c",
+        "console.h": "c",
+        "fat.h": "c",
+        "inode.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

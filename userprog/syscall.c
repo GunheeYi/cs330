@@ -1,3 +1,6 @@
+#define USERPROG
+#define VM
+
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
@@ -9,6 +12,7 @@
 #include "intrinsic.h"
 #ifdef EFILESYS
 	#include <string.h>
+	#include "filesys/fat.h"
 #endif
 
 void syscall_entry (void);
@@ -79,8 +83,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_ISDIR: f->R.rax = isdirr((int) a1); break;
 		case SYS_INUMBER: f->R.rax = inumberr((int) a1); break;
 		case SYS_SYMLINK: f->R.rax = symlinkk((const char*) a1, (const char*) a2); break;
-		// case SYS_MOUNT: mountt(); break;
-		// case SYS_UMOUNT: umountt(); break;
+		case SYS_MOUNT: f->R.rax = mountt((const char*) a1, (int) a2, (int) a3); break;
+		case SYS_UMOUNT: f->R.rax = umountt((const char*) a1); break;
 	}
 }
 
@@ -111,10 +115,10 @@ bool createe(const char *file, unsigned initial_size) {
 	if (file == NULL || is_not_mapped(file) || file[0] == NULL) exitt(-1); // if null pointer / virtual address for file is not mapped / file is empty
 	if ( strlen(file) > NAME_MAX ) return false; // if file name too long
 	
-	return filesys_create(file, initial_size);
+	return filesys_create(&filesys_diskk, file, initial_size);
 }
 
-bool removee(const char *path) { return filesys_remove(path); }
+bool removee(const char *path) { return filesys_remove(&filesys_diskk, path); }
 
 int openn(const char *path) {
 	if ( path==NULL || is_not_mapped(path) ) exitt(-1); // null pointer for file name / file name virtual address not mapped
@@ -122,7 +126,7 @@ int openn(const char *path) {
 
 	lock_acquire(&lock_file);
 	enum inode_type type;
-	void* fdp = filesys_open(path, &type); // file pointer or directory pointer
+	void* fdp = filesys_open(&filesys_diskk, path, &type); // file pointer or directory pointer
 	lock_release(&lock_file);
 
 	ASSERT(type!=INODE_LINK);
@@ -145,6 +149,7 @@ int openn(const char *path) {
 		// lock_release(&lock_file);
 		return -1;
 	}
+	new_file_map->diskk = &filesys_diskk;
 	new_file_map->fd = curr->fd_next;
 	new_file_map->fdp = fdp;
 	new_file_map->type = type;
@@ -203,7 +208,7 @@ int readd(int fd, void *buffer, unsigned size) {
 		struct fm* fm = get_fm(fd);
 		if ( fm==NULL ) exitt(-1); // fd has not been issued (bad)
 		lock_acquire(&lock_file);
-		int size_read = file_read(fm->fdp, buffer, size);
+		int size_read = file_read(&filesys_diskk, fm->fdp, buffer, size);
 		lock_release(&lock_file);
 		return size_read;
 	}
@@ -226,7 +231,7 @@ int writee(int fd, const void *buffer, unsigned size) {
 		struct fm* fm = get_fm(fd);
 		if ( fm==NULL || fm->type!=INODE_FILE ) return -1; // fd has not been issued(bad), or it points to a directory
 		lock_acquire(&lock_file);
-		int size_wrote = file_write(fm->fdp, buffer, size);
+		int size_wrote = file_write(&filesys_diskk, fm->fdp, buffer, size);
 		lock_release(&lock_file);
 		return size_wrote;
 	}
@@ -251,7 +256,7 @@ void closee(int fd) {
 	struct fm* main_fm = get_fm(fd);
 	if ( get_fm(fd)==NULL ) return; // fd has not been issued (bad)
 	
-	if (main_fm->file_exists == true) file_close(main_fm->fdp);
+	if (main_fm->file_exists == true) file_close(&filesys_diskk, main_fm->fdp);
 	list_remove(&main_fm->elem);
 	free(main_fm);
 	// palloc_free_page(main_fm);////////////////////////////////
@@ -280,41 +285,41 @@ bool chdirr(const char *dir) {
 	ASSERT(dir!=NULL); // NULL
 	ASSERT(*dir!=NULL); // empty string
 	struct inode *inode = NULL;
-	if (!dir_lookup(thread_current()->curr_dir, dir, &inode)) {
+	if (!dir_lookup(&filesys_diskk, thread_current()->curr_dir, dir, &inode)) {
 		return false;
 	}
-	thread_current()->curr_dir = dir_open(inode);
+	thread_current()->curr_dir = dir_open(&filesys_diskk, inode);
 	return thread_current()->curr_dir!=NULL;
 };
 
 bool mkdirr(const char* path) {
 	struct dir* parent_dir;
 	char* name = malloc(sizeof(char)*(NAME_MAX));
-	if (!dir_parse(thread_current()->curr_dir, path, &parent_dir, &name)) {
+	if (!dir_parse(&filesys_diskk, thread_current()->curr_dir, path, &parent_dir, &name)) {
 		return false;
 	}
 	if (name=="." || name=="..") { // cannot make directory named "." or ".."
 		return false;
 	}
-	cluster_t tmp = fat_create_chain(0);
+	cluster_t tmp = fat_create_chain(&filesys_diskk, 0);
 	if (tmp==0) {
 		return false;
 	}
-	disk_sector_t child_sector = cluster_to_sector(tmp);
-	if (!dir_create(child_sector, 16)) { // 일단 .과 ..이 들어갈 entry 두 개만 할당 (???)
+	disk_sector_t child_sector = cluster_to_sector(&filesys_diskk, tmp);
+	if (!dir_create(&filesys_diskk, child_sector, 16)) { // 일단 .과 ..이 들어갈 entry 두 개만 할당 (???)
 		return false;
 	}
-	struct dir* child_dir = dir_open(inode_open(child_sector));
+	struct dir* child_dir = dir_open(&filesys_diskk, inode_open(&filesys_diskk, child_sector));
 
 	bool success = child_dir!=NULL &&
-		dir_add(parent_dir, name, child_sector) &&
-		dir_add(child_dir, ".", child_sector) &&
-		dir_add(child_dir, "..", parent_dir->inode->sector);
+		dir_add(&filesys_diskk, parent_dir, name, child_sector) &&
+		dir_add(&filesys_diskk, child_dir, ".", child_sector) &&
+		dir_add(&filesys_diskk, child_dir, "..", parent_dir->inode->sector);
 	
 	if (parent_dir!=thread_current()->curr_dir) {
-		dir_close(parent_dir);
+		dir_close(&filesys_diskk, parent_dir);
 	}
-	dir_close(child_dir);
+	dir_close(&filesys_diskk, child_dir);
 
 	return success;
 };
@@ -322,7 +327,7 @@ bool mkdirr(const char* path) {
 bool readdirr(int fd, char* name) {
 	struct fm* fm = get_fm(fd);
 	ASSERT(fm!=NULL && fm->type==INODE_DIR && fm->fdp!=NULL);
-	return dir_readdir((struct dir*)fm->fdp, name);
+	return dir_readdir(&filesys_diskk, (struct dir*)fm->fdp, name);
 };
 bool isdirr(int fd) {
 	return get_fm(fd)->type==INODE_DIR;
@@ -337,37 +342,44 @@ int inumberr(int fd) {
 };
 
 int symlinkk (const char* target, const char* linkpath) {
-	struct dir *dir = dir_reopen(thread_current()->curr_dir);
+	struct dir *dir = dir_reopen(&filesys_diskk, thread_current()->curr_dir);
 	if (dir==NULL) {
 		return -1;
 	}
 	struct dir* parent_dir;
 	char* name = malloc(sizeof(char)*(NAME_MAX));
-	if (!dir_parse(dir, linkpath, &parent_dir, &name)) {
+	if (!dir_parse(&filesys_diskk, dir, linkpath, &parent_dir, &name)) {
 		free(name);
 		return -1;
 	}
 
-	cluster_t tmp = fat_create_chain(0);
+	cluster_t tmp = fat_create_chain(&filesys_diskk, 0);
 	if (tmp==0) {
 		return false;
 	}
-	disk_sector_t sector = cluster_to_sector(tmp);
+	disk_sector_t sector = cluster_to_sector(&filesys_diskk, tmp);
 
 	if (
-		!inode_create(sector, 0, target, INODE_LINK)
-		|| !dir_add(parent_dir, name, sector)
+		!inode_create(&filesys_diskk, sector, 0, target, INODE_LINK)
+		|| !dir_add(&filesys_diskk, parent_dir, name, sector)
 	) {
 		return -1;
 	}
 
 	if (parent_dir!=dir) {
-		dir_close(parent_dir);
+		dir_close(&filesys_diskk, parent_dir);
 	}
-	dir_close(dir);
+	dir_close(&filesys_diskk, dir);
 
 	return 0;
 };
+
+int mountt (const char *path, int chan_no, int dev_no) {
+	return -1;
+}
+int umountt (const char *path) {
+	return -1;
+}
 #endif
 
 

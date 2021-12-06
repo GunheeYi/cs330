@@ -11,6 +11,7 @@
 #endif
 #ifdef EFILESYS
 	#include "filesys/inode.h"
+	#include "filesys/fat.h"
 #endif
 
 /* States in a thread's life cycle. */
@@ -34,8 +35,15 @@ typedef int tid_t;
 #define NICE_DEFAULT 0
 #define RECENT_CPU_DEFAULT 0
 
+enum inode_type {
+	INODE_FILE = 1,
+	INODE_DIR = 2,
+	INODE_LINK = 3
+};
+
 struct fm {
     int fd;
+	struct diskk* diskk;
 	void* fdp;
 	enum inode_type type;
     struct list_elem elem;

@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <inttypes.h>
+#ifdef EFILESYS
+    #include "filesys/fat.h"
+#endif
 
 /* Bitmap abstract data type. */
 
@@ -41,8 +44,8 @@ size_t bitmap_scan_and_flip (struct bitmap *, size_t start, size_t cnt, bool);
 #ifdef FILESYS
 struct file;
 size_t bitmap_file_size (const struct bitmap *);
-bool bitmap_read (struct bitmap *, struct file *);
-bool bitmap_write (const struct bitmap *, struct file *);
+bool bitmap_read (struct diskk* diskk, struct bitmap *, struct file *);
+bool bitmap_write (struct diskk* diskk, const struct bitmap *, struct file *);
 #endif
 
 /* Debugging. */

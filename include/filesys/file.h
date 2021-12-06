@@ -2,6 +2,7 @@
 #define FILESYS_FILE_H
 #include "filesys/inode.h"
 #include "filesys/off_t.h"
+#include "filesys/filesys.h"
 
 struct inode;
 
@@ -13,17 +14,17 @@ struct file {
 };
 
 /* Opening and closing files. */
-struct file *file_open (struct inode *);
-struct file *file_reopen (struct file *);
-struct file *file_duplicate (struct file *file);
-void file_close (struct file *);
+struct file *file_open (struct diskk*, struct inode*);
+struct file *file_reopen (struct diskk*, struct file *);
+struct file *file_duplicate (struct diskk*, struct file*);
+void file_close (struct diskk*, struct file*);
 struct inode *file_get_inode (struct file *);
 
 /* Reading and writing. */
-off_t file_read (struct file *, void *, off_t);
-off_t file_read_at (struct file *, void *, off_t size, off_t start);
-off_t file_write (struct file *, const void *, off_t);
-off_t file_write_at (struct file *, const void *, off_t size, off_t start);
+off_t file_read (struct diskk*, struct file*, void*, off_t);
+off_t file_read_at (struct diskk*, struct file*, void*, off_t, off_t);
+off_t file_write (struct diskk*, struct file*, const void*, off_t);
+off_t file_write_at (struct diskk*, struct file*, const void*, off_t, off_t);
 
 /* Preventing writes. */
 void file_deny_write (struct file *);

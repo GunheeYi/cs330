@@ -6,7 +6,7 @@
  * and returns the new file.  Returns a null pointer if an
  * allocation fails or if INODE is null. */
 struct file *
-file_open (struct inode *inode) {
+file_open (struct diskk* diskk, struct inode* inode) {
 	struct file *file = calloc (1, sizeof *file);
 	if (inode != NULL && file != NULL) {
 		file->inode = inode;
@@ -14,7 +14,7 @@ file_open (struct inode *inode) {
 		file->deny_write = false;
 		return file;
 	} else {
-		inode_close (inode);
+		inode_close (diskk, inode);
 		free (file);
 		return NULL;
 	}
@@ -23,15 +23,15 @@ file_open (struct inode *inode) {
 /* Opens and returns a new file for the same inode as FILE.
  * Returns a null pointer if unsuccessful. */
 struct file *
-file_reopen (struct file *file) {
-	return file_open (inode_reopen (file->inode));
+file_reopen (struct diskk* diskk, struct file *file) {
+	return file_open (diskk, inode_reopen (file->inode));
 }
 
 /* Duplicate the file object including attributes and returns a new file for the
  * same inode as FILE. Returns a null pointer if unsuccessful. */
 struct file *
-file_duplicate (struct file *file) {
-	struct file *nfile = file_open (inode_reopen (file->inode));
+file_duplicate (struct diskk* diskk, struct file *file) {
+	struct file *nfile = file_open (diskk, inode_reopen (file->inode));
 	if (nfile) {
 		nfile->pos = file->pos;
 		if (file->deny_write)
@@ -42,10 +42,10 @@ file_duplicate (struct file *file) {
 
 /* Closes FILE. */
 void
-file_close (struct file *file) {
+file_close (struct diskk* diskk, struct file *file) {
 	if (file != NULL) {
 		file_allow_write (file);
-		inode_close (file->inode);
+		inode_close (diskk, file->inode);
 		free (file);
 	}
 }
@@ -62,8 +62,8 @@ file_get_inode (struct file *file) {
  * which may be less than SIZE if end of file is reached.
  * Advances FILE's position by the number of bytes read. */
 off_t
-file_read (struct file *file, void *buffer, off_t size) {
-	off_t bytes_read = inode_read_at (file->inode, buffer, size, file->pos);
+file_read (struct diskk* diskk, struct file *file, void *buffer, off_t size) {
+	off_t bytes_read = inode_read_at (diskk, file->inode, buffer, size, file->pos);
 	file->pos += bytes_read;
 	return bytes_read;
 }
@@ -74,8 +74,8 @@ file_read (struct file *file, void *buffer, off_t size) {
  * which may be less than SIZE if end of file is reached.
  * The file's current position is unaffected. */
 off_t
-file_read_at (struct file *file, void *buffer, off_t size, off_t file_ofs) {
-	return inode_read_at (file->inode, buffer, size, file_ofs);
+file_read_at (struct diskk* diskk, struct file *file, void *buffer, off_t size, off_t file_ofs) {
+	return inode_read_at (diskk, file->inode, buffer, size, file_ofs);
 }
 
 /* Writes SIZE bytes from BUFFER into FILE,
@@ -86,8 +86,8 @@ file_read_at (struct file *file, void *buffer, off_t size, off_t file_ofs) {
  * not yet implemented.)
  * Advances FILE's position by the number of bytes read. */
 off_t
-file_write (struct file *file, const void *buffer, off_t size) {
-	off_t bytes_written = inode_write_at (file->inode, buffer, size, file->pos);
+file_write (struct diskk* diskk, struct file *file, const void *buffer, off_t size) {
+	off_t bytes_written = inode_write_at (diskk, file->inode, buffer, size, file->pos);
 	file->pos += bytes_written;
 	return bytes_written;
 }
@@ -100,9 +100,9 @@ file_write (struct file *file, const void *buffer, off_t size) {
  * not yet implemented.)
  * The file's current position is unaffected. */
 off_t
-file_write_at (struct file *file, const void *buffer, off_t size,
+file_write_at (struct diskk* diskk, struct file *file, const void *buffer, off_t size,
 		off_t file_ofs) {
-	return inode_write_at (file->inode, buffer, size, file_ofs);
+	return inode_write_at (diskk, file->inode, buffer, size, file_ofs);
 }
 
 /* Prevents write operations on FILE's underlying inode

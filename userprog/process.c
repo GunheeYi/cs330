@@ -1,4 +1,6 @@
 #define EFILESYS
+#define VM
+#define USERPROG
 
 #include "userprog/process.h"
 #include <debug.h>
@@ -36,7 +38,7 @@ static void __do_fork (void *);
 static void
 process_init (void) {
 	struct thread *current = thread_current ();
-	current->curr_dir = dir_open_root();
+	current->curr_dir = dir_open_root(&filesys_diskk);
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -187,7 +189,8 @@ __do_fork (void *aux) {
 		if (current_fm==NULL) {
 			goto error;
 		}
-		current_fm->fdp = file_duplicate(parent_fm->fdp);
+		current_fm->diskk = parent_fm->diskk;
+		current_fm->fdp = file_duplicate(parent_fm->diskk, parent_fm->fdp);
 		if (current_fm->fdp==NULL) goto error;
 		current_fm->fd = parent_fm->fd;
 		current_fm->copied_fd = parent_fm->copied_fd;
@@ -331,7 +334,7 @@ process_exit (void) {
 		// palloc_free_page(fm);///////////////////////////
 	}
 
-	if (curr->executable!=NULL) file_close(curr->executable);
+	if (curr->executable!=NULL) file_close(&filesys_diskk, curr->executable);
 
 	process_cleanup ();
 
@@ -496,7 +499,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	process_activate (thread_current ());
 
 	/* Open executable file. */
-	file = filesys_open (file_name, NULL);
+	file = filesys_open (&filesys_diskk, file_name, NULL);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
@@ -505,7 +508,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 	t->executable = file;
 
 	/* Read and verify executable header. */
-	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
+	if (file_read (&filesys_diskk, file, &ehdr, sizeof ehdr) != sizeof ehdr
 			|| memcmp (ehdr.e_ident, "\177ELF\2\1\1", 7)
 			|| ehdr.e_type != 2
 			|| ehdr.e_machine != 0x3E // amd64
@@ -524,7 +527,7 @@ load (const char *file_name, struct intr_frame *if_, char **argv, int argc) {
 		if (file_ofs < 0 || file_ofs > file_length (file)) goto done;
 		file_seek (file, file_ofs);
 
-		if (file_read (file, &phdr, sizeof phdr) != sizeof phdr) goto done;
+		if (file_read (&filesys_diskk, file, &phdr, sizeof phdr) != sizeof phdr) goto done;
 		file_ofs += sizeof phdr;
 		switch (phdr.p_type) {
 			case PT_NULL:
@@ -739,7 +742,7 @@ lazy_load_segment (struct page *page, void *aux) {
 		free(page);
 		return false;
 	}
-	if (file_read_at(file, kva, page_read_bytes, ofs) != page_read_bytes) {
+	if (file_read_at(&filesys_diskk, file, kva, page_read_bytes, ofs) != page_read_bytes) {
 		free(page);
 		return false;
 	}
@@ -777,7 +780,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		struct aux* aux = malloc(sizeof(struct aux));
-		aux->file = file_reopen(file); // file_reopen necessary?
+		aux->file = file_reopen(&filesys_diskk, file); // file_reopen necessary?
 		aux->page_read_bytes = page_read_bytes;
 		aux->page_zero_bytes = page_zero_bytes;
 		aux->ofs = ofs;

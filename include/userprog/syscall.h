@@ -36,8 +36,8 @@ bool readdirr(int fd, char* name);
 bool isdirr(int fd);
 int inumberr(int fd);
 int symlinkk (const char* target, const char* linkpath);
-// int mountt();
-// int umountt();
+int mountt (const char *path, int chan_no, int dev_no);
+int umountt (const char *path);
 
 struct lock lock_file;
 

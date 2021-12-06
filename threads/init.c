@@ -1,3 +1,5 @@
+#define FILESYS
+
 #include "threads/init.h"
 #include <console.h>
 #include <debug.h>
@@ -109,7 +111,7 @@ main (void) {
 #ifdef FILESYS
 	/* Initialize file system. */
 	disk_init ();
-	filesys_init (format_filesys);
+	filesys_init (&filesys_diskk, 0, 1, format_filesys);
 #endif
 
 #ifdef VM
@@ -339,7 +341,7 @@ usage (void) {
 void
 power_off (void) {
 #ifdef FILESYS
-	filesys_done ();
+	filesys_done (&filesys_diskk);
 #endif
 
 	print_stats ();
