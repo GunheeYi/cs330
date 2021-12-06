@@ -41,9 +41,11 @@ void set_open_inodes(struct list* open_inodes_) {
 }
 
 /* Initializes the inode module. */
-void
+struct list*
 inode_init (void) {
+	open_inodes = malloc(sizeof(struct list));
 	list_init (open_inodes);
+	return open_inodes;
 }
 
 /* Initializes an inode with LENGTH bytes of data and

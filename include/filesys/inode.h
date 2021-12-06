@@ -39,7 +39,7 @@ struct inode {
 
 void set_open_inodes(struct list* open_inodes_);
 
-void inode_init (void);
+struct list* inode_init (void);
 bool inode_create (disk_sector_t sector, off_t length, const char* target, enum inode_type type);
 struct inode *inode_open (disk_sector_t);
 struct inode *inode_reopen (struct inode *);

@@ -1,3 +1,5 @@
+#define FILESYS
+
 #include "threads/init.h"
 #include <console.h>
 #include <debug.h>
@@ -108,6 +110,7 @@ main (void) {
 
 #ifdef FILESYS
 	/* Initialize file system. */
+	list_init(&diskk_list);
 	disk_init ();
 	filesys_init (0, 1, format_filesys);
 #endif

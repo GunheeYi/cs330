@@ -8,14 +8,6 @@
 #include "filesys/directory.h"
 #include "devices/disk.h"
 
-struct diskk {
-	int chan_no;
-	int dev_no;
-	struct disk* filesys_disk;
-	struct list* open_inodes;
-	struct fat_fs* fat_fs;
-};
-
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
 
@@ -24,14 +16,12 @@ static void do_format (void);
 /* Initializes the file system module.
  * If FORMAT is true, reformats the file system. */
 void
-filesys_init (int chan_no, int dev_no, bool format) {
+filesys_init (int chan, int dev, bool format) {
 	filesys_disk = disk_get (0, 1);
 	if (filesys_disk == NULL)
 		PANIC ("hd0:1 (hdb) not present, file system initialization failed");
 
-	struct list* open_inodes_ = malloc(sizeof(struct list));
-	set_open_inodes(open_inodes_);
-	inode_init ();
+	struct list* ois = inode_init ();
 
 #ifdef EFILESYS
 	fat_init ();
@@ -43,6 +33,14 @@ filesys_init (int chan_no, int dev_no, bool format) {
 
 	thread_current()->curr_dir = dir_open_root();
 	dir_add(thread_current()->curr_dir, ".", cluster_to_sector(ROOT_DIR_CLUSTER));
+
+	struct diskk* new_diskk = malloc(sizeof(struct diskk));
+	new_diskk->chan = chan;
+	new_diskk->dev = dev;
+	new_diskk->disk = filesys_disk;
+	// new_diskk->fat = fat_fs;
+	new_diskk->ois = ois;
+
 #else
 	/* Original FS */
 	free_map_init ();
