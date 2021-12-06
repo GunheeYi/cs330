@@ -34,12 +34,16 @@ byte_to_sector (const struct inode *inode, off_t pos) {
 
 /* List of open inodes, so that opening a single inode twice
  * returns the same `struct inode'. */
-static struct list open_inodes;
+static struct list* open_inodes;
+
+void set_open_inodes(struct list* open_inodes_) {
+	open_inodes = open_inodes_;
+}
 
 /* Initializes the inode module. */
 void
 inode_init (void) {
-	list_init (&open_inodes);
+	list_init (open_inodes);
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -133,7 +137,7 @@ inode_open (disk_sector_t sector) {
 	struct inode *inode;
 
 	/* Check whether this inode is already open. */
-	for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
+	for (e = list_begin (open_inodes); e != list_end (open_inodes);
 			e = list_next (e)) {
 		inode = list_entry (e, struct inode, elem);
 		if (inode->sector == sector) {
@@ -148,7 +152,7 @@ inode_open (disk_sector_t sector) {
 		return NULL;
 
 	/* Initialize. */
-	list_push_front (&open_inodes, &inode->elem);
+	list_push_front (open_inodes, &inode->elem);
 	inode->sector = sector;
 	inode->open_cnt = 1;
 	inode->deny_write_cnt = 0;

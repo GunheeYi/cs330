@@ -21,6 +21,8 @@ filesys_init (int chan_no, int dev_no, bool format) {
 	if (filesys_disk == NULL)
 		PANIC ("hd0:1 (hdb) not present, file system initialization failed");
 
+	struct list* open_inodes_ = malloc(sizeof(struct list));
+	set_open_inodes(open_inodes_);
 	inode_init ();
 
 #ifdef EFILESYS
