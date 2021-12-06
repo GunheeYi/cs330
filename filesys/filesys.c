@@ -17,14 +17,20 @@ static void do_format (void);
  * If FORMAT is true, reformats the file system. */
 void
 filesys_init (int chan, int dev, bool format) {
+	struct diskk* new_diskk = malloc(sizeof(struct diskk));
+	new_diskk->chan = chan;
+	new_diskk->dev = dev;
 	filesys_disk = disk_get (0, 1);
-	if (filesys_disk == NULL)
+	if (filesys_disk == NULL) {
+		free(new_diskk);
 		PANIC ("hd0:1 (hdb) not present, file system initialization failed");
-
-	struct list* ois = inode_init ();
+	}
+	new_diskk->disk = filesys_disk;
+	
+	new_diskk->ois = inode_init ();
 
 #ifdef EFILESYS
-	fat_init ();
+	new_diskk->fat = fat_init ();
 
 	if (format)
 		do_format ();
@@ -34,12 +40,7 @@ filesys_init (int chan, int dev, bool format) {
 	thread_current()->curr_dir = dir_open_root();
 	dir_add(thread_current()->curr_dir, ".", cluster_to_sector(ROOT_DIR_CLUSTER));
 
-	struct diskk* new_diskk = malloc(sizeof(struct diskk));
-	new_diskk->chan = chan;
-	new_diskk->dev = dev;
-	new_diskk->disk = filesys_disk;
-	// new_diskk->fat = fat_fs;
-	new_diskk->ois = ois;
+	list_push_back(&diskk_list, &new_diskk);
 
 #else
 	/* Original FS */

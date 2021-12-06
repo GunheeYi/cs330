@@ -31,7 +31,7 @@ static struct fat_fs *fat_fs;
 void fat_boot_create (void);
 void fat_fs_init (void);
 
-void
+struct fat_fs*
 fat_init (void) {
 	fat_fs = calloc (1, sizeof (struct fat_fs));
 	if (fat_fs == NULL)
@@ -49,6 +49,7 @@ fat_init (void) {
 	if (fat_fs->bs.magic != FAT_MAGIC)
 		fat_boot_create ();
 	fat_fs_init ();
+	return fat_fs;
 }
 
 void

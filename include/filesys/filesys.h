@@ -18,6 +18,7 @@ struct diskk {
 	struct disk* disk;
 	struct list* ois;
 	struct fat_fs* fat;
+	struct list_elem elem;
 };
 
 /* Disk used for file system. */
