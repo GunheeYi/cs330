@@ -8,6 +8,14 @@
 #include "filesys/directory.h"
 #include "devices/disk.h"
 
+struct diskk {
+	int chan_no;
+	int dev_no;
+	struct disk* filesys_disk;
+	struct list* open_inodes;
+	struct fat_fs* fat_fs;
+};
+
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
 
