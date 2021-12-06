@@ -31,6 +31,10 @@ static struct fat_fs *fat_fs;
 void fat_boot_create (void);
 void fat_fs_init (void);
 
+void set_fat_fs(void* fat) {
+	fat_fs = (struct fat_fs*) fat;
+}
+
 struct fat_fs*
 fat_init (void) {
 	fat_fs = calloc (1, sizeof (struct fat_fs));

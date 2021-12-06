@@ -13,6 +13,27 @@ struct disk *filesys_disk;
 
 static void do_format (void);
 
+struct diskk* get_diskk(int chan, int dev) {
+    struct diskk* diskk;
+    for (struct list_elem *e = list_begin(&diskk_list); e != list_end (&diskk_list); e = list_next(e))
+    {
+        diskk = list_entry (e, struct diskk, elem);
+        if (diskk->chan==chan && diskk->dev==dev) return diskk;
+    }
+    return NULL;
+}
+
+bool activate_diskk(int chan, int dev) {
+	struct diskk* diskk = get_diskk(chan, dev);
+    if (diskk==NULL) {
+		filesys_init(chan, dev, true); // should I format at mounting?
+		return;
+	}
+	filesys_disk = diskk->disk;
+	set_fat_fs((void*) diskk->fat);
+	set_open_inodes(diskk->ois);
+}
+
 /* Initializes the file system module.
  * If FORMAT is true, reformats the file system. */
 void

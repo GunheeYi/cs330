@@ -36,8 +36,8 @@ byte_to_sector (const struct inode *inode, off_t pos) {
  * returns the same `struct inode'. */
 static struct list* open_inodes;
 
-void set_open_inodes(struct list* open_inodes_) {
-	open_inodes = open_inodes_;
+void set_open_inodes(struct list* ois) {
+	open_inodes = ois;
 }
 
 /* Initializes the inode module. */
