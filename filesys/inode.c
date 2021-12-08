@@ -1,5 +1,3 @@
-#define EFILESYS
-
 #include "filesys/inode.h"
 #include <debug.h>
 #include <round.h>

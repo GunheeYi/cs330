@@ -1,5 +1,3 @@
-#define EFILESYS
-
 #ifndef FILESYS_DIRECTORY_H
 #define FILESYS_DIRECTORY_H
 
